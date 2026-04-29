@@ -22,7 +22,7 @@ export default async function BlogPage({ searchParams }: { searchParams: { tag?:
 
   const { data: posts } = await query
 
-  const allTags = [...new Set(posts?.flatMap(p => p.tags ?? []) ?? [])]
+ const allTags = Array.from(new Set(posts?.flatMap(p => p.tags ?? []) ?? []))
   const featured = posts?.[0]
   const rest = posts?.slice(1)
 
