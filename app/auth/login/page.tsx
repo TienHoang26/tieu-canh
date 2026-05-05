@@ -19,24 +19,26 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('handleLogin called:', email)
     setLoading(true)
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    console.log('data:', data)
-    console.log('error:', error)
-    console.log('redirect to:', redirect)
-    console.log('Login data:', data)
-    console.log('Login error:', error)
-    if (error) {
-      toast.error(error.message === 'Invalid login credentials' ? 'Email hoặc mật khẩu không đúng' : error.message)
-   } else {
-  console.log('Login success! Redirecting to:', redirect)
-  toast.success('Đăng nhập thành công!')
-  setTimeout(() => {
-    window.location.href = redirect
-  }, 2000)
-}
-    setLoading(false)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      console.log('auth result:', data?.user?.email, error)
+      if (error) {
+        toast.error(error.message === 'Invalid login credentials'
+          ? 'Email hoặc mật khẩu không đúng'
+          : error.message)
+      } else {
+        toast.success('Đăng nhập thành công!')
+        window.location.href = redirect
+      }
+    } catch (err) {
+      console.error('Login error:', err)
+      toast.error('Có lỗi xảy ra, thử lại!')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleGoogleLogin = async () => {
@@ -50,10 +52,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left - Form */}
       <div className="flex-1 flex items-center justify-center px-4 py-16 lg:py-24">
         <div className="w-full max-w-md">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2 mb-10">
             <div className="w-9 h-9 bg-moss-600 rounded-xl flex items-center justify-center">
               <Leaf className="w-5 h-5 text-white" />
@@ -64,7 +64,6 @@ export default function LoginPage() {
           <h1 className="font-display text-3xl font-bold text-stone-800 mb-2">Đăng nhập</h1>
           <p className="text-stone-500 mb-8">Chào mừng bạn trở lại! 🌿</p>
 
-          {/* Google OAuth */}
           <button
             onClick={handleGoogleLogin}
             disabled={googleLoading}
@@ -122,7 +121,11 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full flex items-center justify-center gap-2"
+            >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               Đăng nhập
             </button>
@@ -137,7 +140,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right - Decorative */}
       <div className="hidden lg:flex flex-1 bg-moss-800 items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-moss-700 to-moss-900" />
         <div className="absolute inset-0 bg-leaf-pattern opacity-10" />
