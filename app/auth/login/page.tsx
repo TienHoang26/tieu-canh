@@ -21,14 +21,21 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    console.log('data:', data)
+    console.log('error:', error)
+    console.log('redirect to:', redirect)
+    console.log('Login data:', data)
+    console.log('Login error:', error)
     if (error) {
       toast.error(error.message === 'Invalid login credentials' ? 'Email hoặc mật khẩu không đúng' : error.message)
-    } else {
-      toast.success('Đăng nhập thành công!')
-      router.push(redirect)
-      router.refresh()
-    }
+   } else {
+  console.log('Login success! Redirecting to:', redirect)
+  toast.success('Đăng nhập thành công!')
+  setTimeout(() => {
+    window.location.href = redirect
+  }, 2000)
+}
     setLoading(false)
   }
 
