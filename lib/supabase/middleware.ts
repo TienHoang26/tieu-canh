@@ -10,8 +10,8 @@ export async function updateSession(request: NextRequest) {
     {
       cookies: {
         getAll() { return request.cookies.getAll() },
-       setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
-  cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+        setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -23,23 +23,29 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Protect admin routes
+  console.log('path:', request.nextUrl.pathname)
+  console.log('user:', user?.email)
+
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!user) {
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+      const url = new URL('/auth/login', request.url)
+      url.searchParams.set('redirect', request.nextUrl.pathname)
+      return NextResponse.redirect(url)
     }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
 
+    console.log('profile:', profile)
+
     if (profile?.role !== 'admin') {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
-  // Protect checkout
   if (request.nextUrl.pathname.startsWith('/checkout') && !user) {
     return NextResponse.redirect(new URL('/auth/login?redirect=/checkout', request.url))
   }
