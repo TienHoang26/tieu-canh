@@ -2,13 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Leaf, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
 export default function LoginPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
   const [email, setEmail] = useState('')
@@ -19,24 +18,35 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('handleLogin called:', email)
     setLoading(true)
     try {
       const supabase = createClient()
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      console.log('auth result:', data?.user?.email, error)
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
         toast.error(error.message === 'Invalid login credentials'
           ? 'Email hoặc mật khẩu không đúng'
           : error.message)
+        setLoading(false)
+        return
+      }
+
+      toast.success('Đăng nhập thành công!')
+
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user?.id)
+        .single()
+
+      if (profile?.role === 'admin') {
+        window.location.href = '/admin'
       } else {
-        toast.success('Đăng nhập thành công!')
         window.location.href = redirect
       }
     } catch (err) {
       console.error('Login error:', err)
       toast.error('Có lỗi xảy ra, thử lại!')
-    } finally {
       setLoading(false)
     }
   }

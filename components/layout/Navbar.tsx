@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import type { Profile } from '@/types'
 
 export default function Navbar() {
+  const [mounted, setMounted] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [scrolled, setScrolled] = useState(false)
@@ -18,6 +19,7 @@ export default function Navbar() {
   const cartCount = useCart(s => s.count())
 
   useEffect(() => {
+    setMounted(true)
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
@@ -98,7 +100,6 @@ export default function Navbar() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-2">
-            {/* Search */}
             <Link href="/search" className="p-2.5 hover:bg-moss-50 rounded-xl transition-colors hidden sm:flex">
               <Search className="w-5 h-5 text-stone-700" />
             </Link>
@@ -106,7 +107,7 @@ export default function Navbar() {
             {/* Cart */}
             <Link href="/cart" className="relative p-2.5 hover:bg-moss-50 rounded-xl transition-colors">
               <ShoppingBag className="w-5 h-5 text-stone-700" />
-              {cartCount > 0 && (
+              {mounted && cartCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-moss-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
@@ -114,47 +115,49 @@ export default function Navbar() {
             </Link>
 
             {/* User menu */}
-            {profile ? (
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 p-2 hover:bg-moss-50 rounded-xl transition-colors"
-                >
-                  {profile.avatar_url ? (
-                    <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-8 h-8 bg-moss-100 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-moss-700" />
+            {mounted && (
+              profile ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 p-2 hover:bg-moss-50 rounded-xl transition-colors"
+                  >
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-8 h-8 bg-moss-100 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-moss-700" />
+                      </div>
+                    )}
+                  </button>
+                  {userMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-stone-100 py-2 z-50">
+                      <div className="px-4 py-2 border-b border-stone-100">
+                        <p className="font-semibold text-sm text-stone-800 truncate">{profile.full_name || 'Người dùng'}</p>
+                        <p className="text-xs text-stone-500 truncate">{profile.email}</p>
+                      </div>
+                      {profile.role === 'admin' && (
+                        <Link href="/admin" onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50 hover:text-moss-700 transition-colors">
+                          <Leaf className="w-4 h-4" /> Quản trị
+                        </Link>
+                      )}
+                      <Link href="/orders" onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50 transition-colors">
+                        <ShoppingBag className="w-4 h-4" /> Đơn hàng
+                      </Link>
+                      <button onClick={handleSignOut}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                        <LogOut className="w-4 h-4" /> Đăng xuất
+                      </button>
                     </div>
                   )}
-                </button>
-                {userMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-stone-100 py-2 z-50">
-                    <div className="px-4 py-2 border-b border-stone-100">
-                      <p className="font-semibold text-sm text-stone-800 truncate">{profile.full_name || 'Người dùng'}</p>
-                      <p className="text-xs text-stone-500 truncate">{profile.email}</p>
-                    </div>
-                    {profile.role === 'admin' && (
-                      <Link href="/admin" onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50 hover:text-moss-700 transition-colors">
-                        <Leaf className="w-4 h-4" /> Quản trị
-                      </Link>
-                    )}
-                    <Link href="/orders" onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50 transition-colors">
-                      <ShoppingBag className="w-4 h-4" /> Đơn hàng
-                    </Link>
-                    <button onClick={handleSignOut}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
-                      <LogOut className="w-4 h-4" /> Đăng xuất
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Link href="/auth/login" className="hidden sm:inline-flex items-center gap-1.5 btn-primary py-2 text-sm">
-                <User className="w-4 h-4" /> Đăng nhập
-              </Link>
+                </div>
+              ) : (
+                <Link href="/auth/login" className="hidden sm:inline-flex items-center gap-1.5 btn-primary py-2 text-sm">
+                  <User className="w-4 h-4" /> Đăng nhập
+                </Link>
+              )
             )}
 
             {/* Mobile menu toggle */}

@@ -33,11 +33,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi" className={`${playfair.variable} ${lato.variable}`}>
-      <body className="font-body bg-stone-50 text-stone-800 antialiased">
+      <body suppressHydrationWarning className="font-body bg-stone-50 text-stone-800 antialiased">
         <Navbar />
         <main className="min-h-screen">{children}</main>
         <Footer />
-        <ChatBot />
+        {/* <ChatBot /> */}
         <Toaster
           position="top-right"
           toastOptions={{
