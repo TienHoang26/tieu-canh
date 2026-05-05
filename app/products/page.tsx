@@ -36,7 +36,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     default: query = query.order('featured', { ascending: false }).order('created_at', { ascending: false })
   }
 
-  const { data: products } = await query.limit(24)
+ const { data: products, error } = await query.limit(24)
+ console.log('Products:', products)
+ console.log('Error:', error)
   const { data: categories } = await supabase.from('categories').select('*')
 
   return (
