@@ -17,17 +17,7 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false)
 
 useEffect(() => {
-  const hasSbCookie = document.cookie.split(';').some(c => c.trim().startsWith('sb-'))
-  const justCleared = sessionStorage.getItem('just_cleared')
-  const justLoggedIn = sessionStorage.getItem('just_logged_in')
-  
-  if (hasSbCookie && !justLoggedIn && !justCleared) {
-    sessionStorage.setItem('just_cleared', 'true')
-    window.location.href = '/auth/clear'
-  }
-  
-  sessionStorage.removeItem('just_logged_in')
-  sessionStorage.removeItem('just_cleared')
+  // Không làm gì cả
 }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
