@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Leaf, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
   const [email, setEmail] = useState('')
@@ -162,5 +162,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }
