@@ -16,14 +16,12 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
-useEffect(() => {
-  document.cookie.split(';').forEach(cookie => {
-    const name = cookie.split('=')[0].trim()
-    if (name.includes('sb-') || name.includes('supabase')) {
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+  useEffect(() => {
+    const hasSbCookie = document.cookie.split(';').some(c => c.trim().startsWith('sb-'))
+    if (hasSbCookie) {
+      window.location.href = '/auth/clear'
     }
-  })
-}, [])
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
