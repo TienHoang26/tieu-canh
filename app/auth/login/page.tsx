@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Leaf, Eye, EyeOff, Loader2 } from 'lucide-react'
@@ -15,6 +15,11 @@ function LoginForm() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.signOut()
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
