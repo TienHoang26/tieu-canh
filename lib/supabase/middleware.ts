@@ -2,7 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  // Khởi tạo response duy nhất
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -14,26 +13,29 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // Cập nhật đồng thời cho cả Request và Response
-          cookiesToSet.forEach(({ name, value, options }) => {
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
-            supabaseResponse.cookies.set(name, value, {
-              ...options,
-              path: '/', // Đảm bảo cookie có hiệu lực toàn trang
-            })
-          })
+          )
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
 
-  // Kiểm tra user ( getUser sẽ tự động refresh session nếu cần)
+  // Luôn gọi getUser() để refresh session token nếu cần
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Bảo vệ các tuyến đường Admin
-  if (request.nextUrl.pathname.startsWith('/admin')) {
+  const { pathname } = request.nextUrl
+
+  // Bảo vệ route /admin
+  if (pathname.startsWith('/admin')) {
     if (!user) {
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+      const url = new URL('/auth/login', request.url)
+      url.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(url)
     }
 
     const { data: profile } = await supabase
@@ -47,16 +49,23 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Bảo vệ Checkout
-  if (request.nextUrl.pathname.startsWith('/checkout') && !user) {
-    const loginUrl = new URL('/auth/login', request.url)
-    loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
-    return NextResponse.redirect(loginUrl)
+  // Bảo vệ route /checkout
+  if (pathname.startsWith('/checkout') && !user) {
+    return NextResponse.redirect(new URL('/auth/login?redirect=/checkout', request.url))
   }
 
   return supabaseResponse
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: [
+    /*
+     * Chỉ chạy middleware trên các page route, bỏ qua:
+     * - _next/static (static files)
+     * - _next/image (image optimization)
+     * - favicon.ico, robots.txt, sitemap.xml
+     * - api routes (trừ khi bạn muốn bảo vệ)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
+  ],
 }

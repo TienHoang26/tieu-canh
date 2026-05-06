@@ -5,10 +5,11 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      auth: {
-        persistSession: true,
-        detectSessionInUrl: true,
-        flowType: 'pkce', // Bắt buộc cho SSR trên Vercel để tránh mất session
+      cookieOptions: {
+        path: '/',
+        sameSite: 'lax',
+        secure: true,
+        maxAge: 60 * 60 * 24 * 7,
       }
     }
   )
