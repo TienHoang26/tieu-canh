@@ -16,10 +16,14 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.signOut()
-  }, [])
+useEffect(() => {
+  document.cookie.split(';').forEach(cookie => {
+    const name = cookie.split('=')[0].trim()
+    if (name.includes('sb-') || name.includes('supabase')) {
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+    }
+  })
+}, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
