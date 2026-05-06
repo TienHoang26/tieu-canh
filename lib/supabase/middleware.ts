@@ -18,7 +18,12 @@ export async function updateSession(request: NextRequest) {
           )
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, {
+              ...options,
+              sameSite: 'lax',
+              secure: process.env.NODE_ENV === 'production',
+              maxAge: 60 * 60 * 24 * 7,
+            })
           )
         },
       },
@@ -26,9 +31,6 @@ export async function updateSession(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-
-  console.log('path:', request.nextUrl.pathname)
-  console.log('user:', user?.email)
 
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!user) {
@@ -42,8 +44,6 @@ export async function updateSession(request: NextRequest) {
       .select('role')
       .eq('id', user.id)
       .single()
-
-    console.log('profile:', profile)
 
     if (profile?.role !== 'admin') {
       return NextResponse.redirect(new URL('/', request.url))
