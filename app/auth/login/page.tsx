@@ -2,14 +2,16 @@
 
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation' // Thêm useRouter
 import { Leaf, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
 function LoginForm() {
+  const router = useRouter() // Khởi tạo router
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
+  
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -19,9 +21,13 @@ function LoginForm() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    
     try {
       const supabase = createClient()
+      
+      // Đăng nhập với Supabase
       const { error } = await supabase.auth.signInWithPassword({ email, password })
+      
       if (error) {
         toast.error(error.message === 'Invalid login credentials'
           ? 'Email hoặc mật khẩu không đúng'
@@ -32,6 +38,7 @@ function LoginForm() {
 
       toast.success('Đăng nhập thành công!')
 
+      // Lấy thông tin user và profile
       const { data: { user } } = await supabase.auth.getUser()
       const { data: profile } = await supabase
         .from('profiles')
@@ -39,13 +46,16 @@ function LoginForm() {
         .eq('id', user?.id)
         .single()
 
-      await new Promise(resolve => setTimeout(resolve, 500))
-
+      // Thay vì window.location.href (gây kẹt cookie), ta dùng router.push
+      // Sau đó dùng router.refresh() để ép Next.js cập nhật lại Middleware
       if (profile?.role === 'admin') {
-        window.location.href = '/admin'
+        router.push('/admin')
       } else {
-        window.location.href = redirect
+        router.push(redirect)
       }
+      
+      router.refresh() 
+
     } catch (err) {
       console.error('Login error:', err)
       toast.error('Có lỗi xảy ra, thử lại!')
@@ -58,7 +68,12 @@ function LoginForm() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/api/auth/callback?redirect=${redirect}` },
+      options: { 
+        redirectTo: `${window.location.origin}/api/auth/callback?redirect=${redirect}`,
+        queryParams: {
+          prompt: 'select_account', // Ép Google cho chọn tài khoản để tránh kẹt session cũ
+        }
+      },
     })
   }
 
@@ -109,7 +124,7 @@ function LoginForm() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 placeholder="ban@email.com"
-                className="input"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-moss-500 outline-none"
               />
             </div>
             <div>
@@ -121,7 +136,7 @@ function LoginForm() {
                   onChange={e => setPassword(e.target.value)}
                   required
                   placeholder="••••••••"
-                  className="input pr-12"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-moss-500 outline-none pr-12"
                 />
                 <button
                   type="button"
@@ -136,7 +151,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="w-full bg-moss-600 hover:bg-moss-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               Đăng nhập
@@ -152,9 +167,9 @@ function LoginForm() {
         </div>
       </div>
 
+      {/* Right Decor Section */}
       <div className="hidden lg:flex flex-1 bg-moss-800 items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-moss-700 to-moss-900" />
-        <div className="absolute inset-0 bg-leaf-pattern opacity-10" />
         <div className="relative text-center text-white px-12">
           <div className="text-8xl mb-8">🌿</div>
           <h2 className="font-display text-3xl font-bold mb-4">Thiên nhiên thu nhỏ</h2>
@@ -169,7 +184,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>}>
       <LoginForm />
     </Suspense>
   )
