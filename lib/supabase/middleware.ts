@@ -12,27 +12,26 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-setAll(cookiesToSet) {
-  cookiesToSet.forEach(({ name, value }) =>
-    request.cookies.set(name, value)
-  )
-  supabaseResponse = NextResponse.next({ request })
-  cookiesToSet.forEach(({ name, value, options }) =>
-    supabaseResponse.cookies.set(name, value, {
-      ...options,
-      path: '/',
-      sameSite: 'lax',
-      secure: true,
-      maxAge: 60 * 60 * 24 * 7,
-    })
-  )
-},
+        setAll(cookiesToSet) {
+          // 1. Cập nhật cookie cho request để các Server Components đọc được ngay
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
+          
+          // 2. Cập nhật cookie cho response để trả về trình duyệt
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options) // SỬA: Dùng trực tiếp options từ Supabase
+          )
+        },
       },
     }
   )
 
+  // Lưu ý: getUser() sẽ kích hoạt setAll nếu token cần refresh
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Logic bảo vệ Route Admin
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!user) {
       const url = new URL('/auth/login', request.url)
@@ -51,6 +50,7 @@ setAll(cookiesToSet) {
     }
   }
 
+  // Logic bảo vệ Checkout
   if (request.nextUrl.pathname.startsWith('/checkout') && !user) {
     return NextResponse.redirect(new URL('/auth/login?redirect=/checkout', request.url))
   }
