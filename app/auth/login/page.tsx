@@ -2,13 +2,13 @@
 
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams, useRouter } from 'next/navigation' // Thêm useRouter
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Leaf, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
 function LoginForm() {
-  const router = useRouter() // Khởi tạo router
+  const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
   
@@ -24,8 +24,10 @@ function LoginForm() {
     
     try {
       const supabase = createClient()
-      
-      // Đăng nhập với Supabase
+
+      // BƯỚC QUAN TRỌNG: Dọn sạch mọi session/cookie lỗi còn sót lại
+      await supabase.auth.signOut()
+
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       
       if (error) {
@@ -38,7 +40,7 @@ function LoginForm() {
 
       toast.success('Đăng nhập thành công!')
 
-      // Lấy thông tin user và profile
+      // Lấy thông tin user để điều hướng dựa trên role
       const { data: { user } } = await supabase.auth.getUser()
       const { data: profile } = await supabase
         .from('profiles')
@@ -46,8 +48,7 @@ function LoginForm() {
         .eq('id', user?.id)
         .single()
 
-      // Thay vì window.location.href (gây kẹt cookie), ta dùng router.push
-      // Sau đó dùng router.refresh() để ép Next.js cập nhật lại Middleware
+      // Chuyển hướng và làm mới trạng thái server
       if (profile?.role === 'admin') {
         router.push('/admin')
       } else {
@@ -70,9 +71,7 @@ function LoginForm() {
       provider: 'google',
       options: { 
         redirectTo: `${window.location.origin}/api/auth/callback?redirect=${redirect}`,
-        queryParams: {
-          prompt: 'select_account', // Ép Google cho chọn tài khoản để tránh kẹt session cũ
-        }
+        queryParams: { prompt: 'select_account' }
       },
     })
   }
@@ -96,17 +95,7 @@ function LoginForm() {
             disabled={googleLoading}
             className="w-full flex items-center justify-center gap-3 border-2 border-stone-200 hover:border-stone-300 hover:bg-stone-50 rounded-xl py-3 font-medium text-stone-700 transition-all mb-6"
           >
-            {googleLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-              </svg>
-            )}
-            Tiếp tục với Google
+            {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Tiếp tục với Google"}
           </button>
 
           <div className="relative flex items-center gap-4 mb-6">
@@ -123,7 +112,6 @@ function LoginForm() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                placeholder="ban@email.com"
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-moss-500 outline-none"
               />
             </div>
@@ -135,47 +123,17 @@ function LoginForm() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
-                  placeholder="••••••••"
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-moss-500 outline-none pr-12"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
-                >
+                <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2">
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-moss-600 hover:bg-moss-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
-            >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              Đăng nhập
+            <button type="submit" disabled={loading} className="w-full bg-moss-600 hover:bg-moss-700 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2">
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />} Đăng nhập
             </button>
           </form>
-
-          <p className="text-center text-sm text-stone-500 mt-6">
-            Chưa có tài khoản?{' '}
-            <Link href="/auth/register" className="text-moss-600 font-semibold hover:underline">
-              Đăng ký ngay
-            </Link>
-          </p>
-        </div>
-      </div>
-
-      {/* Right Decor Section */}
-      <div className="hidden lg:flex flex-1 bg-moss-800 items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-moss-700 to-moss-900" />
-        <div className="relative text-center text-white px-12">
-          <div className="text-8xl mb-8">🌿</div>
-          <h2 className="font-display text-3xl font-bold mb-4">Thiên nhiên thu nhỏ</h2>
-          <p className="text-moss-200 text-lg leading-relaxed">
-            Khám phá hàng trăm sản phẩm tiểu cảnh độc đáo, được chế tác thủ công từ nguyên liệu tự nhiên.
-          </p>
         </div>
       </div>
     </div>
@@ -184,7 +142,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>}>
+    <Suspense fallback={<div>Loading...</div>}>
       <LoginForm />
     </Suspense>
   )
