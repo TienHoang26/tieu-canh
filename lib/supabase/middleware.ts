@@ -25,12 +25,19 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Luôn gọi getUser() để refresh session token nếu cần
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
+
+  // Nếu có cookie nhưng session invalid → xóa hết cookie auth để tránh loop
+  if (error && request.cookies.getAll().some(c => c.name.startsWith('sb-'))) {
+    const clearResponse = NextResponse.next({ request })
+    request.cookies.getAll()
+      .filter(c => c.name.startsWith('sb-'))
+      .forEach(c => clearResponse.cookies.delete(c.name))
+    return clearResponse
+  }
 
   const { pathname } = request.nextUrl
 
-  // Bảo vệ route /admin
   if (pathname.startsWith('/admin')) {
     if (!user) {
       const url = new URL('/auth/login', request.url)
@@ -49,23 +56,9 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Bảo vệ route /checkout
   if (pathname.startsWith('/checkout') && !user) {
     return NextResponse.redirect(new URL('/auth/login?redirect=/checkout', request.url))
   }
 
   return supabaseResponse
-}
-
-export const config = {
-  matcher: [
-    /*
-     * Chỉ chạy middleware trên các page route, bỏ qua:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico, robots.txt, sitemap.xml
-     * - api routes (trừ khi bạn muốn bảo vệ)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
-  ],
 }
