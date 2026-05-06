@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+  // 1. Khởi tạo response duy nhất một lần
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -13,25 +14,20 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // 1. Cập nhật cookie cho request để các Server Components đọc được ngay
-          cookiesToSet.forEach(({ name, value }) =>
+          // 2. Cập nhật đồng thời cho cả Request và Response
+          cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value)
-          )
-          
-          // 2. Cập nhật cookie cho response để trả về trình duyệt
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options) // SỬA: Dùng trực tiếp options từ Supabase
-          )
+            supabaseResponse.cookies.set(name, value, options)
+          })
         },
       },
     }
   )
 
-  // Lưu ý: getUser() sẽ kích hoạt setAll nếu token cần refresh
+  // 3. Lấy thông tin user (tự động kích hoạt refresh token nếu cần)
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Logic bảo vệ Route Admin
+  // 4. Bảo vệ các Route Admin
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!user) {
       const url = new URL('/auth/login', request.url)
@@ -50,7 +46,7 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Logic bảo vệ Checkout
+  // 5. Bảo vệ Route Checkout
   if (request.nextUrl.pathname.startsWith('/checkout') && !user) {
     return NextResponse.redirect(new URL('/auth/login?redirect=/checkout', request.url))
   }
