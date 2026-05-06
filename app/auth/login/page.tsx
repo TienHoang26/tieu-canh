@@ -18,9 +18,10 @@ function LoginForm() {
 
   useEffect(() => {
     const hasSbCookie = document.cookie.split(';').some(c => c.trim().startsWith('sb-'))
-    if (hasSbCookie) {
+    if (hasSbCookie && !sessionStorage.getItem('just_logged_in')) {
       window.location.href = '/auth/clear'
     }
+    sessionStorage.removeItem('just_logged_in')
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -38,6 +39,7 @@ function LoginForm() {
       }
 
       toast.success('Đăng nhập thành công!')
+      sessionStorage.setItem('just_logged_in', 'true')
 
       const { data: { user } } = await supabase.auth.getUser()
       const { data: profile } = await supabase
