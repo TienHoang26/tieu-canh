@@ -6,11 +6,10 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookieOptions: {
-        name: 'sb-tieu-canh',
-        domain: typeof window !== 'undefined' ? window.location.hostname : '',
         path: '/',
         sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
+        maxAge: 60 * 60 * 24 * 7,
       }
     }
   )
