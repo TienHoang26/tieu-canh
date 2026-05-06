@@ -39,6 +39,8 @@ function LoginForm() {
         .eq('id', user?.id)
         .single()
 
+      await new Promise(resolve => setTimeout(resolve, 500))
+
       if (profile?.role === 'admin') {
         window.location.href = '/admin'
       } else {
