@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  // 1. Khởi tạo response duy nhất một lần
+  // Khởi tạo response duy nhất
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -14,25 +14,26 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // 2. Cập nhật đồng thời cho cả Request và Response
+          // Cập nhật đồng thời cho cả Request và Response
           cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value)
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, {
+              ...options,
+              path: '/', // Đảm bảo cookie có hiệu lực toàn trang
+            })
           })
         },
       },
     }
   )
 
-  // 3. Lấy thông tin user (tự động kích hoạt refresh token nếu cần)
+  // Kiểm tra user ( getUser sẽ tự động refresh session nếu cần)
   const { data: { user } } = await supabase.auth.getUser()
 
-  // 4. Bảo vệ các Route Admin
+  // Bảo vệ các tuyến đường Admin
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!user) {
-      const url = new URL('/auth/login', request.url)
-      url.searchParams.set('redirect', request.nextUrl.pathname)
-      return NextResponse.redirect(url)
+      return NextResponse.redirect(new URL('/auth/login', request.url))
     }
 
     const { data: profile } = await supabase
@@ -46,10 +47,16 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // 5. Bảo vệ Route Checkout
+  // Bảo vệ Checkout
   if (request.nextUrl.pathname.startsWith('/checkout') && !user) {
-    return NextResponse.redirect(new URL('/auth/login?redirect=/checkout', request.url))
+    const loginUrl = new URL('/auth/login', request.url)
+    loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   return supabaseResponse
+}
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }
