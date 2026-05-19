@@ -30,8 +30,6 @@ const LOGIN_CSS = `
   box-shadow: 0 8px 48px rgba(45,110,48,0.14);
   position: relative;
 }
-
-/* ── PANELS ── */
 .lp-left {
   position: relative;
   width: 44%;
@@ -86,11 +84,7 @@ const LOGIN_CSS = `
   margin: 0 0 12px 0;
   line-height: 1.6;
 }
-.lp-left-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+.lp-left-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .lp-left-tag {
   font-size: 11.5px;
   color: rgba(255,255,255,0.92);
@@ -100,8 +94,6 @@ const LOGIN_CSS = `
   padding: 4px 11px;
   backdrop-filter: blur(4px);
 }
-
-/* ── TOGGLE ARROW BUTTON ── */
 .lp-toggle-btn {
   position: absolute;
   top: 50%;
@@ -125,8 +117,6 @@ const LOGIN_CSS = `
   box-shadow: 0 6px 22px rgba(45,110,48,0.45);
   transform: translateY(-50%) scale(1.08);
 }
-
-/* ── RIGHT PANEL ── */
 .lp-right {
   flex: 1;
   display: flex;
@@ -137,8 +127,6 @@ const LOGIN_CSS = `
   position: relative;
   overflow: hidden;
 }
-
-/* Panels switch animation */
 .lp-form-panel {
   width: 100%;
   transition: opacity 0.35s ease, transform 0.35s ease;
@@ -153,7 +141,6 @@ const LOGIN_CSS = `
   opacity: 1;
   transform: translateX(0);
 }
-
 .lp-heading {
   font-family: 'Playfair Display', serif;
   font-size: 30px;
@@ -163,15 +150,8 @@ const LOGIN_CSS = `
   text-transform: uppercase;
   margin: 0 0 6px 0;
 }
-.lp-subheading {
-  font-size: 14px;
-  color: #5a8a5e;
-  margin: 0 0 26px 0;
-}
-.lp-input-group {
-  position: relative;
-  margin-bottom: 14px;
-}
+.lp-subheading { font-size: 14px; color: #5a8a5e; margin: 0 0 26px 0; }
+.lp-input-group { position: relative; margin-bottom: 14px; }
 .lp-input-icon {
   position: absolute;
   left: 14px;
@@ -318,6 +298,7 @@ const LOGIN_CSS = `
 function LoginRegisterForm() {
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
+  const router = useRouter()
 
   const [mode, setMode] = useState<'login' | 'register'>('login')
 
@@ -343,7 +324,8 @@ function LoginRegisterForm() {
     setLoading(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
       if (error) {
         toast.error(
           error.message === 'Invalid login credentials'
@@ -353,17 +335,23 @@ function LoginRegisterForm() {
         setLoading(false)
         return
       }
+
       toast.success('Đăng nhập thành công!')
-      const { data: { user } } = await supabase.auth.getUser()
+
+      // ✅ FIX: Kiểm tra role từ data.user trả về trực tiếp (không cần getUser() lại)
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
-        .eq('id', user?.id)
+        .eq('id', data.user.id)
         .single()
+
+      // ✅ FIX: router.refresh() để Next.js re-fetch session → Navbar cập nhật ngay
+      router.refresh()
+
       if (profile?.role === 'admin') {
-        window.location.href = '/admin'
+        router.push('/admin')
       } else {
-        window.location.href = redirect
+        router.push(redirect)
       }
     } catch (err) {
       console.error('Login error:', err)
@@ -436,7 +424,6 @@ function LoginRegisterForm() {
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
             <div className="lp-left-overlay" />
-
             <div className="lp-left-info">
               <div className="lp-left-icon">
                 <Leaf style={{ width: 22, height: 22, color: '#fff' }} />
@@ -451,7 +438,7 @@ function LoginRegisterForm() {
             </div>
           </div>
 
-          {/* Toggle arrow — nổi giữa 2 panel */}
+          {/* Toggle arrow */}
           <button
             className="lp-toggle-btn"
             onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
@@ -479,6 +466,7 @@ function LoginRegisterForm() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="lp-input"
+                  onKeyDown={e => e.key === 'Enter' && handleLogin(e as any)}
                 />
               </div>
 
@@ -490,6 +478,7 @@ function LoginRegisterForm() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="lp-input"
+                  onKeyDown={e => e.key === 'Enter' && handleLogin(e as any)}
                 />
                 <button type="button" className="lp-input-eye" onClick={() => setShowPass(!showPass)} tabIndex={-1}>
                   {showPass ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
@@ -529,7 +518,7 @@ function LoginRegisterForm() {
                 </button>
                 <button onClick={handleFacebookLogin} disabled={facebookLoading} className="lp-social-btn lp-social-fb">
                   {facebookLoading ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                     </svg>
                   )}
@@ -609,7 +598,7 @@ function LoginRegisterForm() {
                 </button>
                 <button onClick={handleFacebookLogin} disabled={facebookLoading} className="lp-social-btn lp-social-fb">
                   {facebookLoading ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                     </svg>
                   )}

@@ -3,7 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ShoppingBag, Menu, X, Leaf, User, LogOut, Search } from 'lucide-react'
+import {
+  ShoppingBag, Menu, X, User, LogOut, Search,
+  Phone, Mail, MapPin, Facebook, Youtube, MessageCircle
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCart } from '@/lib/cart-store'
 import { cn } from '@/lib/utils'
@@ -15,12 +18,14 @@ export default function Navbar() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [scrolled, setScrolled] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const pathname = usePathname()
   const cartCount = useCart(s => s.count())
 
   useEffect(() => {
     setMounted(true)
     const supabase = createClient()
+
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
         const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
@@ -46,12 +51,19 @@ export default function Navbar() {
     }
   }, [])
 
-  const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    setProfile(null)
-    setUserMenuOpen(false)
-    window.location.href = '/'
+const handleSignOut = async () => {
+  const supabase = createClient()
+  await supabase.auth.signOut({ scope: 'local' })
+  setProfile(null)
+  setUserMenuOpen(false)
+  window.location.href = '/auth/login'  // ← đổi từ '/' thành '/auth/login'
+}
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`
+    }
   }
 
   const navLinks = [
@@ -63,128 +75,348 @@ export default function Navbar() {
   ]
 
   return (
-    <header className={cn(
-      'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-      scrolled
-        ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-stone-100'
-        : 'bg-white/80 backdrop-blur-sm'
-    )}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 lg:h-20">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 bg-moss-600 rounded-xl flex items-center justify-center group-hover:bg-moss-700 transition-colors">
-              <Leaf className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <span className="font-display font-bold text-xl text-stone-800">Tiểu Cảnh</span>
-              <span className="font-display font-bold text-xl text-moss-600"> Việt</span>
-            </div>
-          </Link>
+    <header className="fixed top-0 left-0 right-0 z-50">
 
-          {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-8">
-            {navLinks.map(link => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'text-sm font-medium transition-colors hover:text-moss-600',
-                  pathname === link.href ? 'text-moss-600' : 'text-stone-600'
-                )}
+      {/* ════════════════════════════════════════
+          TOP INFO BAR
+          Hiện đầy đủ trên md+, ẩn bớt trên mobile
+      ════════════════════════════════════════ */}
+      <div className="bg-moss-700 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="h-10 flex items-center justify-between text-xs">
+
+            {/* Left – liên hệ */}
+            <div className="flex items-center gap-3 sm:gap-5">
+              <a
+                href="tel:0123456789"
+                className="flex items-center gap-1.5 hover:text-moss-200 transition-colors whitespace-nowrap"
               >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+                <Phone className="w-3 h-3 flex-shrink-0" />
+                <span>0123.456.789</span>
+              </a>
+              <a
+                href="mailto:info@sanvuonnvm.vn"
+                className="hidden sm:flex items-center gap-1.5 hover:text-moss-200 transition-colors whitespace-nowrap"
+              >
+                <Mail className="w-3 h-3 flex-shrink-0" />
+                <span>info@sanvuonnvm.vn</span>
+              </a>
+              <span className="hidden md:flex items-center gap-1.5 text-moss-200 whitespace-nowrap">
+                <MapPin className="w-3 h-3 flex-shrink-0" />
+                <span>Hà Nội, Việt Nam</span>
+              </span>
+            </div>
 
-          {/* Right Actions */}
-          <div className="flex items-center gap-2">
-            <Link href="/search" className="p-2.5 hover:bg-moss-50 rounded-xl transition-colors hidden sm:flex">
-              <Search className="w-5 h-5 text-stone-700" />
-            </Link>
-
-            {/* Cart */}
-            <Link href="/cart" className="relative p-2.5 hover:bg-moss-50 rounded-xl transition-colors">
-              <ShoppingBag className="w-5 h-5 text-stone-700" />
-              {mounted && cartCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-moss-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                  {cartCount > 9 ? '9+' : cartCount}
-                </span>
-              )}
-            </Link>
-
-            {/* User menu */}
-            {mounted && (
-              profile ? (
-                <div className="relative">
-                  <button
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 p-2 hover:bg-moss-50 rounded-xl transition-colors"
-                  >
-                    {profile.avatar_url ? (
-                      <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-8 h-8 bg-moss-100 rounded-full flex items-center justify-center">
-                        <User className="w-4 h-4 text-moss-700" />
-                      </div>
-                    )}
-                  </button>
-                  {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-stone-100 py-2 z-50">
-                      <div className="px-4 py-2 border-b border-stone-100">
-                        <p className="font-semibold text-sm text-stone-800 truncate">{profile.full_name || 'Người dùng'}</p>
-                        <p className="text-xs text-stone-500 truncate">{profile.email}</p>
-                      </div>
-                      {profile.role === 'admin' && (
-                        <Link href="/admin" onClick={() => setUserMenuOpen(false)}
-                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50 hover:text-moss-700 transition-colors">
-                          <Leaf className="w-4 h-4" /> Quản trị
-                        </Link>
-                      )}
-                      <Link href="/orders" onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50 transition-colors">
-                        <ShoppingBag className="w-4 h-4" /> Đơn hàng
-                      </Link>
-                      <button onClick={handleSignOut}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
-                        <LogOut className="w-4 h-4" /> Đăng xuất
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Link href="/auth/login" className="hidden sm:inline-flex items-center gap-1.5 btn-primary py-2 text-sm">
-                  <User className="w-4 h-4" /> Đăng nhập
-                </Link>
-              )
-            )}
-
-            {/* Mobile menu toggle */}
-            <button className="lg:hidden p-2.5" onClick={() => setMenuOpen(!menuOpen)}>
-              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+            {/* Right – mạng xã hội */}
+            <div className="flex items-center gap-1.5">
+              {[
+                {
+                  href: 'https://facebook.com',
+                  icon: <Facebook className="w-3 h-3" />,
+                  label: 'Facebook',
+                },
+                {
+                  href: 'https://youtube.com',
+                  icon: <Youtube className="w-3 h-3" />,
+                  label: 'YouTube',
+                },
+                {
+                  href: 'https://tiktok.com',
+                  icon: (
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.77a4.85 4.85 0 01-1.01-.08z" />
+                    </svg>
+                  ),
+                  label: 'TikTok',
+                },
+                {
+                  href: 'https://zalo.me',
+                  icon: <MessageCircle className="w-3 h-3" />,
+                  label: 'Zalo',
+                },
+              ].map(({ href, icon, label }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className="w-6 h-6 bg-white/10 hover:bg-white/25 rounded flex items-center justify-center transition-colors"
+                >
+                  {icon}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Mobile Menu */}
-        {menuOpen && (
-          <div className="lg:hidden border-t border-stone-100 py-4 space-y-1">
-            {navLinks.map(link => (
-              <Link key={link.href} href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-medium text-stone-700 hover:bg-moss-50 rounded-xl">
-                {link.label}
-              </Link>
-            ))}
-            {!profile && (
-              <Link href="/auth/login" onClick={() => setMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-semibold text-moss-700 hover:bg-moss-50 rounded-xl">
-                Đăng nhập / Đăng ký
-              </Link>
-            )}
-          </div>
+      {/* ════════════════════════════════════════
+          MAIN NAVBAR
+      ════════════════════════════════════════ */}
+      <div
+        className={cn(
+          'transition-all duration-300',
+          scrolled
+            ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-stone-100'
+            : 'bg-white/80 backdrop-blur-sm'
         )}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Row height: 64px mobile → 72px tablet → 88px desktop */}
+          <div className="flex items-center justify-between h-16 sm:h-20 lg:h-24 gap-3 lg:gap-6">
+
+            {/* ── LOGO ───────────────────────────
+                Thay src="/logo.png" bằng ảnh logo thật của bạn.
+            ─────────────────────────────────── */}
+            <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group flex-shrink-0 min-w-0">
+              <img
+                src="/index/Logo.jpg"
+                alt="Logo Sân Vườn Tiểu Cảnh NVM"
+                width={36}
+                height={36}
+                className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 object-contain rounded-xl flex-shrink-0"
+                onError={(e) => {
+                  const t = e.currentTarget
+                  t.style.display = 'none'
+                  ;(t.nextElementSibling as HTMLElement)?.classList.remove('hidden')
+                  ;(t.nextElementSibling as HTMLElement)?.classList.add('flex')
+                }}
+              />
+              {/* Fallback khi chưa có ảnh logo */}
+              <div className="hidden w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-moss-600 rounded-xl items-center justify-center text-white font-bold text-xs flex-shrink-0 group-hover:bg-moss-700 transition-colors">
+                NVM
+              </div>
+
+              {/* Tên thương hiệu — NVM cùng dòng với tên */}
+              <div className="leading-tight min-w-0">
+                <div className="font-display font-bold text-base sm:text-lg lg:text-xl text-stone-800 whitespace-nowrap">
+                  Sân Vườn Tiểu Cảnh <span className="text-moss-600">NVM</span>
+                </div>
+              </div>
+            </Link>
+
+            {/* ── DESKTOP NAV (lg+) ─────────────── */}
+            <nav className="hidden lg:flex items-center gap-6 xl:gap-8 flex-shrink-0">
+              {navLinks.map(link => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    'text-sm font-medium transition-colors hover:text-moss-600 whitespace-nowrap',
+                    pathname === link.href ? 'text-moss-600' : 'text-stone-600'
+                  )}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+
+            {/* ── SEARCH BAR (md+ desktop) ────────── */}
+            <form
+              onSubmit={handleSearch}
+              className="hidden md:flex items-center flex-shrink-0 w-36 lg:w-48"
+            >
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Tìm cây cảnh, đá, chậu..."
+                  className="
+                    w-full h-9 pl-4 pr-9 text-sm rounded-xl outline-none transition-all
+                    bg-stone-100 border border-stone-200 text-stone-800
+                    placeholder:text-stone-400
+                    focus:border-moss-400 focus:bg-white focus:ring-2 focus:ring-moss-100
+                  "
+                />
+                <button
+                  type="submit"
+                  aria-label="Tìm kiếm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-moss-600 transition-colors"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+
+            {/* ── RIGHT ACTIONS ──────────────────── */}
+            <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+
+              {/* Search icon – chỉ hiện trên mobile (< md) */}
+              <Link
+                href="/search"
+                aria-label="Tìm kiếm"
+                className="md:hidden p-2 sm:p-2.5 hover:bg-moss-50 rounded-xl transition-colors"
+              >
+                <Search className="w-5 h-5 text-stone-700" />
+              </Link>
+
+              {/* Giỏ hàng */}
+              <Link
+                href="/cart"
+                aria-label="Giỏ hàng"
+                className="relative p-2 sm:p-2.5 hover:bg-moss-50 rounded-xl transition-colors"
+              >
+                <ShoppingBag className="w-5 h-5 text-stone-700" />
+                {mounted && cartCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-moss-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {cartCount > 9 ? '9+' : cartCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Tài khoản người dùng */}
+              {mounted && (
+                profile ? (
+                  /* ── ĐÃ ĐĂNG NHẬP: Avatar + tên ── */
+                  <div className="relative">
+                    <button
+                      onClick={() => setUserMenuOpen(!userMenuOpen)}
+                      className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 hover:bg-moss-50 rounded-xl transition-colors"
+                    >
+                      {profile.avatar_url ? (
+                        <img
+                          src={profile.avatar_url}
+                          alt=""
+                          className="w-8 h-8 rounded-full object-cover border-2 border-moss-200 flex-shrink-0"
+                        />
+                      
+                      ) : (
+                      <div className="w-8 h-8 bg-moss-600 rounded-full flex items-center justify-center border-2 border-moss-200 flex-shrink-0 text-white text-sm font-bold uppercase">
+                      {(profile.full_name?.split(' ').pop() || profile.email || 'U').charAt(0)}
+                        </div>
+                      )}
+                      {/* Tên: ẩn trên mobile nhỏ, hiện từ sm+ */}
+                      <span className="hidden sm:block text-sm font-semibold text-stone-800 max-w-[90px] lg:max-w-[120px] truncate">
+                        {profile.full_name || 'Người dùng'}
+                      </span>
+                    </button>
+
+                    {/* Dropdown */}
+                    {userMenuOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-stone-100 py-2 z-50">
+                        <div className="px-4 py-2 border-b border-stone-100">
+                          <p className="font-semibold text-sm text-stone-800 truncate">
+                            {profile.full_name || 'Người dùng'}
+                          </p>
+                          <p className="text-xs text-stone-500 truncate">{profile.email}</p>
+                        </div>
+                        {profile.role === 'admin' && (
+                          <Link
+                            href="/admin"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50 hover:text-moss-700 transition-colors"
+                          >
+                            Quản trị
+                          </Link>
+                        )}
+                        <Link
+                          href="/orders"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50 transition-colors"
+                        >
+                          <ShoppingBag className="w-4 h-4" /> Đơn hàng
+                        </Link>
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut className="w-4 h-4" /> Đăng xuất
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* ── CHƯA ĐĂNG NHẬP: Nút Đăng nhập ── */
+                  <Link
+                    href="/auth/login"
+                    className="hidden sm:inline-flex items-center gap-1.5 btn-primary py-2 px-3 text-sm"
+                  >
+                    <User className="w-4 h-4" /> Đăng nhập
+                  </Link>
+                )
+              )}
+
+              {/* Hamburger – mobile & tablet */}
+              <button
+                className="lg:hidden p-2 sm:p-2.5 hover:bg-moss-50 rounded-xl transition-colors"
+                onClick={() => setMenuOpen(!menuOpen)}
+                aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}
+              >
+                {menuOpen ? <X className="w-5 h-5 text-stone-700" /> : <Menu className="w-5 h-5 text-stone-700" />}
+              </button>
+            </div>
+          </div>
+
+          {/* ════════════════════════════════════════
+              MOBILE MENU (< lg)
+          ════════════════════════════════════════ */}
+          {menuOpen && (
+            <div className="lg:hidden border-t border-stone-100 pb-4 pt-3 space-y-0.5">
+
+              {/* Search – chỉ mobile < md */}
+              <form onSubmit={handleSearch} className="md:hidden px-3 pb-3">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Tìm cây cảnh, đá, chậu..."
+                    className="
+                      w-full h-10 pl-4 pr-10 text-sm rounded-xl outline-none
+                      bg-stone-100 border border-stone-200 text-stone-800
+                      placeholder:text-stone-400
+                      focus:border-moss-400 focus:bg-white
+                    "
+                  />
+                  <button
+                    type="submit"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-moss-600"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
+
+              {navLinks.map(link => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className={cn(
+                    'block px-4 py-3 text-sm font-medium rounded-xl transition-colors',
+                    pathname === link.href
+                      ? 'text-moss-600 bg-moss-50'
+                      : 'text-stone-700 hover:bg-moss-50 hover:text-moss-700'
+                  )}
+                >
+                  {link.label}
+                </Link>
+              ))}
+
+              {!profile && (
+                <Link
+                  href="/auth/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-4 py-3 text-sm font-semibold text-moss-700 hover:bg-moss-50 rounded-xl transition-colors"
+                >
+                  Đăng nhập / Đăng ký
+                </Link>
+              )}
+
+              {/* Thông tin liên hệ gọn – chỉ mobile */}
+              <div className="sm:hidden pt-3 mt-2 border-t border-stone-100 px-4 space-y-2">
+                <a href="tel:0123456789" className="flex items-center gap-2 text-xs text-stone-500 hover:text-moss-600">
+                  <Phone className="w-3.5 h-3.5" /> 0123.456.789
+                </a>
+                <a href="mailto:info@sanvuonnvm.vn" className="flex items-center gap-2 text-xs text-stone-500 hover:text-moss-600">
+                  <Mail className="w-3.5 h-3.5" /> info@sanvuonnvm.vn
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   )
