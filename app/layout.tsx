@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Playfair_Display, Lato } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
+import Navbar from '@/components/layout/Navbar'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -31,7 +32,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi" className={`${playfair.variable} ${lato.variable}`}>
       <body suppressHydrationWarning className="font-body bg-stone-50 text-stone-800 antialiased">
-        {children}
+        <Navbar />
+        
+        {/* Tăng padding từ pt-20 lên pt-24 */}
+        <main className="pt-24">
+          {children}
+        </main>
+        
         <Toaster
           position="top-right"
           toastOptions={{
