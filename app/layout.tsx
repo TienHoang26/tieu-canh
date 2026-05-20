@@ -3,6 +3,7 @@ import { Playfair_Display, Lato } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import Navbar from '@/components/layout/Navbar'
+import WishlistProvider from '@/components/WishlistProvider'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -33,12 +34,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="vi" className={`${playfair.variable} ${lato.variable}`}>
       <body suppressHydrationWarning className="font-body bg-stone-50 text-stone-800 antialiased">
         <Navbar />
-        
-        {/* Tăng padding từ pt-20 lên pt-24 */}
+        <WishlistProvider />
         <main className="pt-24">
           {children}
         </main>
-        
         <Toaster
           position="top-right"
           toastOptions={{

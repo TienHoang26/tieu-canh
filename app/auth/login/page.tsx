@@ -332,21 +332,16 @@ function LoginRegisterForm() {
             ? 'Email hoặc mật khẩu không đúng'
             : error.message
         )
-        setLoading(false)
         return
       }
 
-      toast.success('Đăng nhập thành công!')
-
-      // ✅ FIX: Kiểm tra role từ data.user trả về trực tiếp (không cần getUser() lại)
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
         .single()
 
-      // ✅ FIX: router.refresh() để Next.js re-fetch session → Navbar cập nhật ngay
-      router.refresh()
+      toast.success('Đăng nhập thành công!')
 
       if (profile?.role === 'admin') {
         router.push('/admin')
@@ -356,6 +351,7 @@ function LoginRegisterForm() {
     } catch (err) {
       console.error('Login error:', err)
       toast.error('Có lỗi xảy ra, thử lại!')
+    } finally {
       setLoading(false)
     }
   }
@@ -372,15 +368,14 @@ function LoginRegisterForm() {
       })
       if (error) {
         toast.error(error.message)
-        setRegLoading(false)
         return
       }
       toast.success('Đăng ký thành công! Vui lòng kiểm tra email.')
       setMode('login')
-      setRegLoading(false)
     } catch (err) {
       console.error('Register error:', err)
       toast.error('Có lỗi xảy ra, thử lại!')
+    } finally {
       setRegLoading(false)
     }
   }

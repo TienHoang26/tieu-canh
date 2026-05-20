@@ -1,29 +1,33 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ShoppingCart, Heart, Star } from 'lucide-react'
 import { useCart } from '@/lib/cart-store'
+import { useWishlist } from '@/lib/wishlist-store'
+import { flyToTarget } from '@/lib/fly-animation'
 import { formatPrice, cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { Product } from '@/types'
 
 export default function ProductCard({ product }: { product: Product }) {
   const [mounted, setMounted] = useState(false)
-  const [wished, setWished] = useState(false)
   const addItem = useCart(s => s.addItem)
   const router = useRouter()
+  const { isWished, toggle } = useWishlist()
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const cartBtnRef = useRef<HTMLButtonElement>(null)
+  const wishBtnRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => { setMounted(true) }, [])
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     if (product.stock === 0) return
     addItem(product)
+    if (cartBtnRef.current) flyToTarget(cartBtnRef.current, 'cart', '🛒')
     toast.success(`Đã thêm "${product.name}" vào giỏ!`)
   }
 
@@ -35,20 +39,33 @@ export default function ProductCard({ product }: { product: Product }) {
     router.push('/cart')
   }
 
-  const handleWishlist = (e: React.MouseEvent) => {
+  const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     if (!mounted) return
-    setWished(prev => !prev)
-    toast.success(wished ? `Đã bỏ yêu thích` : `Đã thêm vào yêu thích ❤️`)
+
+    const result = await toggle(product.id)
+
+    if (result === 'unauthenticated') {
+      toast.error('Vui lòng đăng nhập để lưu yêu thích!', { icon: '🔐', duration: 3000 })
+      router.push('/auth/login')
+      return
+    }
+
+    if (result === 'added') {
+      if (wishBtnRef.current) flyToTarget(wishBtnRef.current, 'wishlist', '❤️')
+      toast.success('Đã thêm vào yêu thích ❤️')
+    } else {
+      toast('Đã bỏ yêu thích', { icon: '🤍' })
+    }
   }
 
+  const wished = mounted && isWished(product.id)
   const mainImage = product.images?.[0] || 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600'
   const discount = product.sale_price
     ? Math.round((1 - product.sale_price / product.price) * 100)
     : 0
 
-  // Render skeleton khi chưa mounted để tránh hydration error
   if (!mounted) {
     return (
       <div className="group">
@@ -72,6 +89,7 @@ export default function ProductCard({ product }: { product: Product }) {
   return (
     <Link href={`/products/${product.slug}`} className="group">
       <div className="card hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+
         {/* Image */}
         <div className="relative aspect-square overflow-hidden bg-stone-50 rounded-t-2xl">
           <img
@@ -99,13 +117,13 @@ export default function ProductCard({ product }: { product: Product }) {
             )}
           </div>
 
-          {/* Wishlist button - luôn visible để tránh hydration error */}
+          {/* Wishlist button */}
           <button
+            ref={wishBtnRef}
             onClick={handleWishlist}
             aria-label={wished ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
             className={cn(
               'absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200',
-              'opacity-100',
               wished
                 ? 'bg-red-50 border border-red-200 text-red-500'
                 : 'bg-white/80 backdrop-blur-sm border border-stone-200 text-stone-400 hover:text-red-500 hover:bg-white'
@@ -142,6 +160,7 @@ export default function ProductCard({ product }: { product: Product }) {
           <div className="grid grid-cols-[36px_1fr_1fr] gap-2">
             {/* Giỏ hàng */}
             <button
+              ref={cartBtnRef}
               onClick={handleAddToCart}
               disabled={product.stock === 0}
               aria-label="Thêm vào giỏ hàng"
@@ -169,14 +188,17 @@ export default function ProductCard({ product }: { product: Product }) {
               Mua ngay
             </button>
 
-            {/* Xem chi tiết */}
-            <Link
-              href={`/products/${product.slug}`}
-              onClick={e => e.stopPropagation()}
+            {/* Chi tiết — dùng button thay vì Link để tránh <a> lồng trong <a> */}
+            <button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                router.push(`/products/${product.slug}`)
+              }}
               className="h-9 rounded-xl text-xs font-medium border border-stone-200 text-stone-600 hover:border-moss-300 hover:text-moss-700 flex items-center justify-center transition-all"
             >
               Chi tiết
-            </Link>
+            </button>
           </div>
 
           {product.stock > 0 && product.stock <= 5 && (
