@@ -133,7 +133,7 @@ export default function Navbar() {
                 className="flex items-center gap-1.5 hover:text-moss-200 transition-colors whitespace-nowrap"
               >
                 <Phone className="w-3 h-3 flex-shrink-0" />
-                <span>0123.456.789</span>
+                <span>0966.556.234 - 0982.424.345</span>
               </a>
 
               <a
@@ -141,12 +141,12 @@ export default function Navbar() {
                 className="hidden sm:flex items-center gap-1.5 hover:text-moss-200 transition-colors whitespace-nowrap"
               >
                 <Mail className="w-3 h-3 flex-shrink-0" />
-                <span>info@sanvuonnvm.vn</span>
+                <span>tranhdadep@gmail.com</span>
               </a>
 
               <span className="hidden md:flex items-center gap-1.5 text-moss-200 whitespace-nowrap">
                 <MapPin className="w-3 h-3 flex-shrink-0" />
-                <span>Hà Nội, Việt Nam</span>
+                <span>TP Hồ Chí Minh, Việt Nam</span>
               </span>
             </div>
 

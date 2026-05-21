@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MapPin, Phone, Mail, Clock, Send, Loader2, CheckCircle, MessageCircle, Facebook, Instagram } from 'lucide-react'
+import { MapPin, Phone, Mail, Clock, Send, Loader2, CheckCircle, MessageCircle, Facebook, Music2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
@@ -30,18 +30,7 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 pt-20 lg:pt-24">
-      {/* Hero */}
-      <section className="bg-white py-16 border-b border-stone-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-moss-600 font-semibold text-sm uppercase tracking-widest mb-3">Hỗ trợ</p>
-          <h1 className="font-display text-4xl lg:text-5xl font-bold text-stone-800 mb-4">Liên hệ với chúng tôi</h1>
-          <p className="text-stone-500 text-lg max-w-xl mx-auto">
-            Chúng tôi luôn sẵn sàng lắng nghe và hỗ trợ bạn. Đừng ngần ngại liên hệ!
-          </p>
-        </div>
-      </section>
-
+    <div className="min-h-screen bg-stone-50 pt-6 lg:pt-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid lg:grid-cols-3 gap-12">
           {/* Left: Contact info */}
@@ -50,9 +39,9 @@ export default function ContactPage() {
               <h2 className="font-bold text-stone-800 text-xl mb-6">Thông tin liên hệ</h2>
               <div className="space-y-5">
                 {[
-                  { icon: MapPin, label: 'Địa chỉ', value: '123 Đường Rừng Xanh, P. Nhật Tân, Q. Tây Hồ, Hà Nội', color: 'text-red-500 bg-red-50' },
-                  { icon: Phone, label: 'Điện thoại', value: '0901 234 567', color: 'text-green-600 bg-green-50' },
-                  { icon: Mail, label: 'Email', value: 'hello@tieucanhviet.vn', color: 'text-blue-500 bg-blue-50' },
+                  { icon: MapPin, label: 'Địa chỉ', value: '16 Đường số 10 KDC Nam Long, P. Tân Thuận Đông, Quận 7 , Ho Chi Minh City, Vietnam', color: 'text-red-500 bg-red-50' },
+                  { icon: Phone, label: 'Điện thoại', value: '0966.556.234 - 0982.424.345', color: 'text-green-600 bg-green-50' },
+                  { icon: Mail, label: 'Email', value: 'tranhdadep@gmail.com', color: 'text-blue-500 bg-blue-50' },
                   { icon: Clock, label: 'Giờ làm việc', value: 'Thứ 2 – Thứ 7: 8:00 – 18:00\nChủ nhật: 9:00 – 16:00', color: 'text-purple-500 bg-purple-50' },
                 ].map(({ icon: Icon, label, value, color }) => (
                   <div key={label} className="flex gap-4">
@@ -73,8 +62,8 @@ export default function ContactPage() {
               <h3 className="font-bold text-stone-800 mb-4">Mạng xã hội</h3>
               <div className="flex gap-3">
                 {[
-                  { icon: Facebook, label: 'Facebook', color: 'bg-blue-600 hover:bg-blue-700', href: '#' },
-                  { icon: Instagram, label: 'Instagram', color: 'bg-pink-600 hover:bg-pink-700', href: '#' },
+                  { icon: Facebook, label: 'Facebook', color: 'bg-blue-600 hover:bg-blue-700', href: 'https://r.search.yahoo.com/_ylt=AwrPpPx4Fg9qUAIAH6RrUwx.;_ylu=Y29sbwNzZzMEcG9zAzEEdnRpZAMEc2VjA3Ny/RV=2/RE=1780583288/RO=10/RU=https%3a%2f%2fwww.facebook.com%2fcongtyTNHHSANVUONTIEUCANHNVM%2f/RK=2/RS=3DHd394Faa5aQ.TJI5KZqeHx5Yg-' },
+                 { icon: Music2, label: 'TikTok', color: 'bg-black hover:bg-stone-800', href: 'https://www.tiktok.com/@sanvuontieucanhnvm1?is_from_webapp=1&sender_device=pc' },
                   { icon: MessageCircle, label: 'Zalo', color: 'bg-sky-500 hover:bg-sky-600', href: '#' },
                 ].map(({ icon: Icon, label, color, href }) => (
                   <a key={label} href={href} className={`flex items-center gap-2 ${color} text-white px-4 py-2.5 rounded-xl transition-colors text-sm font-medium`}>
@@ -85,18 +74,18 @@ export default function ContactPage() {
             </div>
 
             {/* Map embed */}
-            <div className="rounded-2xl overflow-hidden border border-stone-200 shadow-sm">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3723.1!2d105.8!3d21.06!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zVMOieSBI4buTIEjDoCBO4buZaQ!5e0!3m2!1svi!2svn!4v1"
-                width="100%"
-                height="240"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Vị trí Tiểu Cảnh Việt"
-              />
-            </div>
+           <div className="rounded-2xl overflow-hidden border border-stone-200 shadow-sm">
+  <iframe
+    src="https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d62713.83865098125!2d106.68974328688334!3d10.764132354813476!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!2m1!1zMTYgxJDGsOG7nW5nIHPhu5EgMTAgS0RDIE5hbSBMb25nLCBQLiBUw6JuIFRodeG6rW4gxJDDtG5nLCBRdeG6rW4gNyAsIEhvIENoaSBNaW5oIENpdHksIFZpZXRuYW0!5e0!3m2!1svi!2s!4v1779372973277!5m2!1svi!2s"
+    width="100%"
+    height="240"
+    style={{ border: 0 }}
+    allowFullScreen
+    loading="lazy"
+    referrerPolicy="no-referrer-when-downgrade"
+    title="Vị trí Tiểu Cảnh Việt"
+  />
+</div>
           </div>
 
           {/* Right: Form */}
