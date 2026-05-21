@@ -11,11 +11,10 @@ const LOGIN_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Nunito:wght@400;500;600;700&display=swap');
 
 .lp-root {
-  min-height: 100vh;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #e8ede6;
   padding: 24px;
   font-family: 'Nunito', sans-serif;
 }

@@ -1,8 +1,9 @@
+// app/layout.tsx
+
 import type { Metadata } from 'next'
 import { Playfair_Display, Lato } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
-import Navbar from '@/components/layout/Navbar'
 import WishlistProvider from '@/components/WishlistProvider'
 
 const playfair = Playfair_Display({
@@ -20,7 +21,8 @@ const lato = Lato({
 
 export const metadata: Metadata = {
   title: 'Tiểu Cảnh Việt | Nghệ Thuật Thiên Nhiên Thu Nhỏ',
-  description: 'Khám phá bộ sưu tập tiểu cảnh, terrarium, bonsai mini độc đáo. Mang thiên nhiên vào không gian sống của bạn.',
+  description:
+    'Khám phá bộ sưu tập tiểu cảnh, terrarium, bonsai mini độc đáo. Mang thiên nhiên vào không gian sống của bạn.',
   keywords: 'tiểu cảnh, terrarium, bonsai mini, zen garden, cây cảnh mini',
   openGraph: {
     title: 'Tiểu Cảnh Việt',
@@ -29,15 +31,19 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="vi" className={`${playfair.variable} ${lato.variable}`}>
-      <body suppressHydrationWarning className="font-body bg-stone-50 text-stone-800 antialiased">
-        <Navbar />
+      <body
+        suppressHydrationWarning
+        className="font-body bg-stone-50 text-stone-800 antialiased"
+      >
         <WishlistProvider />
-        <main className="pt-24">
-          {children}
-        </main>
+        {children}
         <Toaster
           position="top-right"
           toastOptions={{
