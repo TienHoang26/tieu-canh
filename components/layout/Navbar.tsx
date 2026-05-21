@@ -95,7 +95,7 @@ export default function Navbar() {
     const supabase = createClient()
 
     await supabase.auth.signOut({
-      scope: 'local',
+      scope: 'global',
     })
 
     setProfile(null)

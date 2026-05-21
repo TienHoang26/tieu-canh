@@ -323,6 +323,7 @@ function LoginRegisterForm() {
     setLoading(true)
     try {
       const supabase = createClient()
+      await supabase.auth.signOut({ scope: 'local' })
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
       if (error) {
