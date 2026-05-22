@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Package, ShoppingBag, Users, Leaf, Menu, X, LogOut, Home, BookOpen, Tag, MessageSquare, Mail } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, Menu, X, LogOut, Home, BookOpen, Tag, MessageSquare, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -35,14 +35,15 @@ export default function AdminSidebar() {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="px-6 py-6 border-b border-stone-100">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-moss-600 rounded-lg flex items-center justify-center">
-            <Leaf className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <p className="font-bold text-sm text-stone-800">Tiểu Cảnh Việt</p>
-            <p className="text-xs text-moss-600 font-medium">Admin Panel</p>
-          </div>
+        <div className="flex items-center gap-3">
+          <img
+            src="/index/Logo.jpg"
+            alt="Sân Vườn Tiểu Cảnh NMV"
+            className="w-12 h-12 object-contain"
+          />
+          <p className="font-bold text-base text-stone-800">
+            Sân Vườn Tiểu Cảnh <span className="text-moss-600">NMV</span>
+          </p>
         </div>
       </div>
 
@@ -90,10 +91,14 @@ export default function AdminSidebar() {
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-stone-100 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-moss-600 rounded-lg flex items-center justify-center">
-            <Leaf className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="font-bold text-sm">Admin Panel</span>
+          <img
+            src="/logo.png"
+            alt="Sân Vườn Tiểu Cảnh NMV"
+            className="w-10 h-10 object-contain"
+          />
+          <span className="font-bold text-sm">
+            Sân Vườn Tiểu Cảnh <span className="text-moss-600">NMV</span>
+          </span>
         </div>
         <button onClick={() => setOpen(!open)} className="p-2">
           {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
