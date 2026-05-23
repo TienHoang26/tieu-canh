@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Plus, Pencil, Trash2, X, Loader2, Search, ToggleLeft, ToggleRight, Star, Package, Tag, AlertTriangle, TrendingUp, Filter, ChevronDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Loader2, Search, ToggleLeft, ToggleRight, Star, Package, Tag, AlertTriangle, TrendingUp, Filter, ChevronDown, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatPrice, cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -20,32 +20,38 @@ export default function AdminProductsClient({
   const [filterCategory, setFilterCategory] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterStock, setFilterStock] = useState('')
+  const [filterSpecial, setFilterSpecial] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [viewing, setViewing] = useState<Product | null>(null)
 
   // ── Stats ──────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const total = products.length
-    const active = products.filter(p => p.active).length
     const outOfStock = products.filter(p => p.stock === 0).length
+    const activeAndInStock = products.filter(p => p.active && p.stock > 0).length
     const onSale = products.filter(p => p.sale_price && p.sale_price < p.price).length
-    return { total, active, outOfStock, onSale }
+    const featured = products.filter(p => p.featured).length
+    return { total, activeAndInStock, outOfStock, onSale, featured }
   }, [products])
 
   // ── Filter ─────────────────────────────────────────────────────────────
   const filtered = useMemo(() => products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
-    const matchCat = !filterCategory || (p.category as { name: string } | null)?.name === filterCategory || p.category_id === filterCategory
+    const matchCat = !filterCategory || p.category_id === filterCategory
     const matchStatus = !filterStatus || (filterStatus === 'active' ? p.active : !p.active)
     const matchStock = !filterStock ||
       (filterStock === 'out' && p.stock === 0) ||
       (filterStock === 'low' && p.stock > 0 && p.stock < 10) ||
       (filterStock === 'ok' && p.stock >= 10)
-    return matchSearch && matchCat && matchStatus && matchStock
-  }), [products, search, filterCategory, filterStatus, filterStock])
+    const matchSpecial = !filterSpecial ||
+      (filterSpecial === 'sale' && p.sale_price && p.sale_price < p.price) ||
+      (filterSpecial === 'featured' && p.featured)
+    return matchSearch && matchCat && matchStatus && matchStock && matchSpecial
+  }), [products, search, filterCategory, filterStatus, filterStock, filterSpecial])
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setShowModal(true) }
 
@@ -117,15 +123,14 @@ export default function AdminProductsClient({
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">{stock}</span>
   }
 
+  const hasFilter = search || filterCategory || filterStatus || filterStock || filterSpecial
+
   return (
     <div className="max-w-7xl mx-auto space-y-5">
 
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl lg:text-3xl font-bold text-stone-800">Sản phẩm</h1>
-          <p className="text-stone-400 text-sm mt-0.5">Quản lý toàn bộ danh mục sản phẩm</p>
-        </div>
+      {/* ── Header + Button ── */}
+      <div className="flex items-center justify-between">
+        
         <button onClick={openCreate} className="btn-primary flex items-center gap-2 shadow-sm">
           <Plus className="w-4 h-4" /> Thêm sản phẩm
         </button>
@@ -134,10 +139,10 @@ export default function AdminProductsClient({
       {/* ── Stats cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Tổng sản phẩm', value: stats.total, icon: Package, color: 'bg-blue-50 text-blue-600', border: 'border-blue-100' },
-          { label: 'Đang bán', value: stats.active, icon: TrendingUp, color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' },
-          { label: 'Hết hàng', value: stats.outOfStock, icon: AlertTriangle, color: 'bg-red-50 text-red-500', border: 'border-red-100' },
-          { label: 'Đang giảm giá', value: stats.onSale, icon: Tag, color: 'bg-amber-50 text-amber-600', border: 'border-amber-100' },
+          { label: 'Tổng sản phẩm',    value: stats.total,           icon: Package,       color: 'bg-blue-50 text-blue-600',     border: 'border-blue-100' },
+          { label: 'Đang bán (có hàng)', value: stats.activeAndInStock, icon: TrendingUp,  color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' },
+          { label: 'Hết hàng',          value: stats.outOfStock,      icon: AlertTriangle, color: 'bg-red-50 text-red-500',        border: 'border-red-100' },
+          { label: 'Đang giảm giá',     value: stats.onSale,          icon: Tag,           color: 'bg-amber-50 text-amber-600',    border: 'border-amber-100' },
         ].map((s, i) => (
           <div key={i} className={cn('rounded-xl border p-4 flex items-center gap-3 bg-white', s.border)}>
             <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', s.color)}>
@@ -158,7 +163,7 @@ export default function AdminProductsClient({
         </div>
 
         {/* Search */}
-        <div className="relative flex-1 min-w-[180px]">
+        <div className="relative flex-1 min-w-[160px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Tìm theo tên..." className="w-full pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-moss-400 bg-stone-50" />
@@ -197,9 +202,20 @@ export default function AdminProductsClient({
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400 pointer-events-none" />
         </div>
 
+        {/* Special */}
+        <div className="relative">
+          <select value={filterSpecial} onChange={e => setFilterSpecial(e.target.value)}
+            className="pl-3 pr-7 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-moss-400 bg-stone-50 appearance-none cursor-pointer">
+            <option value="">Tất cả loại</option>
+            <option value="sale">🏷 Đang Sale</option>
+            <option value="featured">⭐ Nổi bật</option>
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400 pointer-events-none" />
+        </div>
+
         {/* Clear */}
-        {(search || filterCategory || filterStatus || filterStock) && (
-          <button onClick={() => { setSearch(''); setFilterCategory(''); setFilterStatus(''); setFilterStock('') }}
+        {hasFilter && (
+          <button onClick={() => { setSearch(''); setFilterCategory(''); setFilterStatus(''); setFilterStock(''); setFilterSpecial('') }}
             className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors">
             Xoá lọc ✕
           </button>
@@ -214,9 +230,10 @@ export default function AdminProductsClient({
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-stone-50">
-                <th className="text-left px-5 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Sản phẩm</th>
-                <th className="text-left px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100 hidden md:table-cell">Danh mục</th>
-                <th className="text-left px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Giá</th>
+                <th className="text-center px-3 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100 w-12">STT</th>
+                <th className="text-center px-5 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Sản phẩm</th>
+                <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100 hidden md:table-cell">Danh mục</th>
+                <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Giá</th>
                 <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100 hidden sm:table-cell">Kho</th>
                 <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Hiển thị</th>
                 <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-stone-100">Thao tác</th>
@@ -226,9 +243,14 @@ export default function AdminProductsClient({
               {filtered.map((p, idx) => (
                 <tr key={p.id}
                   className={cn(
-                    'border-b border-stone-100 hover:bg-moss-50/40 transition-colors group',
+                    'border-b border-stone-100 hover:bg-moss-50/40 transition-colors',
                     idx % 2 === 0 ? 'bg-white' : 'bg-stone-50/50'
                   )}>
+
+                  {/* STT */}
+                  <td className="px-3 py-3 text-center border-r border-stone-100">
+                    <span className="text-xs text-stone-400 font-mono">{idx + 1}</span>
+                  </td>
 
                   {/* Sản phẩm */}
                   <td className="px-5 py-3 border-r border-stone-100">
@@ -239,14 +261,14 @@ export default function AdminProductsClient({
                         className="w-10 h-10 object-cover rounded-lg shrink-0 border border-stone-100 shadow-sm"
                       />
                       <div className="min-w-0">
-                        <p className="font-medium text-stone-800 truncate max-w-[260px]">{p.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
+                        <p className="font-medium text-stone-800 truncate max-w-[240px]">{p.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           {p.featured && (
                             <span className="text-xs text-amber-600 flex items-center gap-0.5 font-medium">
                               <Star className="w-3 h-3 fill-current" /> Nổi bật
                             </span>
                           )}
-                          {p.sale_price && (
+                          {p.sale_price && p.sale_price < p.price && (
                             <span className="text-xs bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded font-medium">Sale</span>
                           )}
                         </div>
@@ -255,16 +277,16 @@ export default function AdminProductsClient({
                   </td>
 
                   {/* Danh mục */}
-                  <td className="px-4 py-3 border-r border-stone-100 hidden md:table-cell">
+                  <td className="px-4 py-3 border-r border-stone-100 text-center hidden md:table-cell">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-stone-100 text-stone-600">
                       {(p.category as { name: string } | null)?.name ?? '—'}
                     </span>
                   </td>
 
                   {/* Giá */}
-                  <td className="px-4 py-3 border-r border-stone-100">
+                  <td className="px-4 py-3 border-r border-stone-100 text-center">
                     <p className="font-semibold text-stone-800 whitespace-nowrap">{formatPrice(p.sale_price ?? p.price)}</p>
-                    {p.sale_price && (
+                    {p.sale_price && p.sale_price < p.price && (
                       <p className="text-xs text-stone-400 line-through whitespace-nowrap">{formatPrice(p.price)}</p>
                     )}
                   </td>
@@ -287,6 +309,12 @@ export default function AdminProductsClient({
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <button
+                        onClick={() => setViewing(p)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Xem
+                      </button>
+                      <button
                         onClick={() => openEdit(p)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-moss-700 bg-moss-50 hover:bg-moss-100 border border-moss-200 rounded-lg transition-colors"
                       >
@@ -308,7 +336,7 @@ export default function AdminProductsClient({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-16">
+                  <td colSpan={7} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2 text-stone-400">
                       <Package className="w-10 h-10 opacity-30" />
                       <p className="font-medium">Không tìm thấy sản phẩm</p>
@@ -322,6 +350,95 @@ export default function AdminProductsClient({
         </div>
       </div>
 
+{/* ── View Modal ── */}
+      {viewing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewing(null)} />
+          <div className="relative bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 sticky top-0 bg-white rounded-t-2xl z-10">
+              <h2 className="font-bold text-stone-800 text-lg">Chi tiết sản phẩm</h2>
+              <button onClick={() => setViewing(null)} className="p-2 hover:bg-stone-100 rounded-xl transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+
+              {/* Ảnh */}
+              {viewing.images && viewing.images.length > 0 && (
+                <div className="flex gap-2 flex-wrap">
+                  {viewing.images.map((img, i) => (
+                    <img key={i} src={img} alt={`${viewing.name} ${i + 1}`}
+                      className="w-24 h-24 object-cover rounded-xl border border-stone-100 shadow-sm" />
+                  ))}
+                </div>
+              )}
+
+              {/* Tên + badges */}
+              <div>
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  {viewing.featured && (
+                    <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                      <Star className="w-3 h-3 fill-current" /> Nổi bật
+                    </span>
+                  )}
+                  {viewing.active
+                    ? <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">Đang bán</span>
+                    : <span className="text-xs text-stone-500 bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-full font-medium">Đã ẩn</span>}
+                  {viewing.sale_price && viewing.sale_price < viewing.price && (
+                    <span className="text-xs text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full font-medium">Sale</span>
+                  )}
+                </div>
+                <h3 className="text-xl font-bold text-stone-800">{viewing.name}</h3>
+                <p className="text-xs text-stone-400 mt-0.5 font-mono">slug: {viewing.slug}</p>
+              </div>
+
+              {/* Grid thông tin */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Danh mục', value: (viewing.category as { name: string } | null)?.name ?? '—' },
+                  { label: 'Số lượng kho', value: String(viewing.stock) },
+                  { label: 'Giá gốc', value: formatPrice(viewing.price) },
+                  { label: 'Giá khuyến mãi', value: viewing.sale_price ? formatPrice(viewing.sale_price) : '—' },
+                ].map(f => (
+                  <div key={f.label} className="bg-stone-50 rounded-xl px-4 py-3 border border-stone-100">
+                    <p className="text-xs text-stone-400 mb-0.5">{f.label}</p>
+                    <p className="font-semibold text-stone-800 text-sm">{f.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Mô tả */}
+              {viewing.description && (
+                <div className="bg-stone-50 rounded-xl px-4 py-3 border border-stone-100">
+                  <p className="text-xs text-stone-400 mb-1">Mô tả</p>
+                  <p className="text-sm text-stone-700 leading-relaxed whitespace-pre-wrap">{viewing.description}</p>
+                </div>
+              )}
+
+              {/* Tags */}
+              {viewing.tags && viewing.tags.length > 0 && (
+                <div>
+                  <p className="text-xs text-stone-400 mb-2">Tags</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewing.tags.map((tag, i) => (
+                      <span key={i} className="text-xs bg-stone-100 text-stone-600 px-2.5 py-1 rounded-full border border-stone-200">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Button đóng + sửa */}
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setViewing(null)} className="btn-outline flex-1">Đóng</button>
+                <button onClick={() => { setViewing(null); openEdit(viewing) }} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  <Pencil className="w-4 h-4" /> Chỉnh sửa
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
       {/* ── Modal ── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
