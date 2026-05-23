@@ -81,7 +81,7 @@ export default function CategoriesSection({ categories }: { categories: Category
             >
               <div className="w-full aspect-[4/3] overflow-hidden">
                 <img
-                  src="/images/categories/bonsai-nghe-thuat.svg"
+                  src="/index/DanhMuc3.jpg"
                   alt="Bonsai nghệ thuật"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   onError={(e) => { e.currentTarget.src = '/images/placeholder.svg' }}
@@ -98,12 +98,12 @@ export default function CategoriesSection({ categories }: { categories: Category
           {/* Tiểu cảnh thác nước */}
           <motion.div variants={itemVariants}>
             <Link
-              href="/products?category=tieu-canh-thac-nuoc"
+              href="/products?category=Tieu_canh_thac_nuoc"
               className="group flex flex-col rounded-2xl overflow-hidden border-2 border-moss-400 shadow-[0_2px_15px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_40px_rgba(74,124,74,0.22)] hover:-translate-y-2 transition-all duration-300"
             >
               <div className="w-full aspect-[4/3] overflow-hidden">
                 <img
-                  src="/images/categories/tieu-canh-thac-nuoc.svg"
+                  src="/index/DanhMuc2.jpeg"
                   alt="Tiểu cảnh thác nước"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   onError={(e) => { e.currentTarget.src = '/images/placeholder.svg' }}
@@ -120,7 +120,7 @@ export default function CategoriesSection({ categories }: { categories: Category
           {/* Hòn non bộ */}
           <motion.div variants={itemVariants}>
             <Link
-              href="/products?category=hon-non-bo"
+              href="/products?category=Hon_non_bo"
               className="group flex flex-col rounded-2xl overflow-hidden border-2 border-moss-400 shadow-[0_2px_15px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_40px_rgba(74,124,74,0.22)] hover:-translate-y-2 transition-all duration-300"
             >
               <div className="w-full aspect-[4/3] overflow-hidden">
@@ -142,12 +142,12 @@ export default function CategoriesSection({ categories }: { categories: Category
           {/* Tiểu cảnh để bàn */}
           <motion.div variants={itemVariants}>
             <Link
-              href="/products?category=tieu-canh-de-ban"
+              href="/products?category=Tieu_canh_de_ban"
               className="group flex flex-col rounded-2xl overflow-hidden border-2 border-moss-400 shadow-[0_2px_15px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_40px_rgba(74,124,74,0.22)] hover:-translate-y-2 transition-all duration-300"
             >
               <div className="w-full aspect-[4/3] overflow-hidden">
                 <img
-                  src="/images/categories/tieu-canh-de-ban.svg"
+                  src="/index/DanhMuc4.jpeg"
                   alt="Tiểu cảnh để bàn"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   onError={(e) => { e.currentTarget.src = '/images/placeholder.svg' }}
@@ -164,12 +164,12 @@ export default function CategoriesSection({ categories }: { categories: Category
           {/* Tiểu cảnh phong thủy */}
           <motion.div variants={itemVariants}>
             <Link
-              href="/products?category=tieu-canh-phong-thuy"
+              href="/products?category=Tieu_canh_phong_thuy"
               className="group flex flex-col rounded-2xl overflow-hidden border-2 border-moss-400 shadow-[0_2px_15px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_40px_rgba(74,124,74,0.22)] hover:-translate-y-2 transition-all duration-300"
             >
               <div className="w-full aspect-[4/3] overflow-hidden">
                 <img
-                  src="/images/categories/tieu-canh-phong-thuy.svg"
+                  src="/index/DanhMuc5.jpeg"
                   alt="Tiểu cảnh phong thủy"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   onError={(e) => { e.currentTarget.src = '/images/placeholder.svg' }}
@@ -186,12 +186,12 @@ export default function CategoriesSection({ categories }: { categories: Category
           {/* Phụ kiện trang trí */}
           <motion.div variants={itemVariants}>
             <Link
-              href="/products?category=phu-kien-trang-tri"
+              href="/products?category=Phu_kien_trang_tri_tieu_canh"
               className="group flex flex-col rounded-2xl overflow-hidden border-2 border-moss-400 shadow-[0_2px_15px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_40px_rgba(74,124,74,0.22)] hover:-translate-y-2 transition-all duration-300"
             >
               <div className="w-full aspect-[4/3] overflow-hidden">
                 <img
-                  src="/images/categories/phu-kien-trang-tri.svg"
+                  src="/index/DanhMuc6.jpeg"
                   alt="Phụ kiện trang trí"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   onError={(e) => { e.currentTarget.src = '/images/placeholder.svg' }}
