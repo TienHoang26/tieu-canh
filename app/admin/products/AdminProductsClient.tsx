@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, X, Loader2, Search, ToggleLeft, ToggleRight, Star } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, Pencil, Trash2, X, Loader2, Search, ToggleLeft, ToggleRight, Star, Package, Tag, AlertTriangle, TrendingUp, Filter, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatPrice, cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -17,21 +17,37 @@ export default function AdminProductsClient({
 }: { products: Product[]; categories: Category[] }) {
   const [products, setProducts] = useState(initial)
   const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterStock, setFilterStock] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  )
+  // ── Stats ──────────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const total = products.length
+    const active = products.filter(p => p.active).length
+    const outOfStock = products.filter(p => p.stock === 0).length
+    const onSale = products.filter(p => p.sale_price && p.sale_price < p.price).length
+    return { total, active, outOfStock, onSale }
+  }, [products])
 
-  const openCreate = () => {
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    setShowModal(true)
-  }
+  // ── Filter ─────────────────────────────────────────────────────────────
+  const filtered = useMemo(() => products.filter(p => {
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
+    const matchCat = !filterCategory || (p.category as { name: string } | null)?.name === filterCategory || p.category_id === filterCategory
+    const matchStatus = !filterStatus || (filterStatus === 'active' ? p.active : !p.active)
+    const matchStock = !filterStock ||
+      (filterStock === 'out' && p.stock === 0) ||
+      (filterStock === 'low' && p.stock > 0 && p.stock < 10) ||
+      (filterStock === 'ok' && p.stock >= 10)
+    return matchSearch && matchCat && matchStatus && matchStock
+  }), [products, search, filterCategory, filterStatus, filterStock])
+
+  const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setShowModal(true) }
 
   const openEdit = (p: Product) => {
     setEditing(p)
@@ -46,8 +62,9 @@ export default function AdminProductsClient({
   }
 
   const slugify = (s: string) => s.toLowerCase()
+    .replace(/đ/g, 'd')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9 -]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')
+    .replace(/[^a-z0-9 -]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim()
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,19 +86,11 @@ export default function AdminProductsClient({
     if (editing) {
       const { data, error } = await supabase.from('products').update(payload).eq('id', editing.id).select('*, category:categories(name,slug)').single()
       if (error) { toast.error(error.message) }
-      else {
-        setProducts(ps => ps.map(p => p.id === editing.id ? data : p))
-        toast.success('Đã cập nhật sản phẩm!')
-        setShowModal(false)
-      }
+      else { setProducts(ps => ps.map(p => p.id === editing.id ? data : p)); toast.success('Đã cập nhật sản phẩm!'); setShowModal(false) }
     } else {
       const { data, error } = await supabase.from('products').insert(payload).select('*, category:categories(name,slug)').single()
       if (error) { toast.error(error.message) }
-      else {
-        setProducts(ps => [data, ...ps])
-        toast.success('Đã thêm sản phẩm!')
-        setShowModal(false)
-      }
+      else { setProducts(ps => [data, ...ps]); toast.success('Đã thêm sản phẩm!'); setShowModal(false) }
     }
     setSaving(false)
   }
@@ -102,104 +111,221 @@ export default function AdminProductsClient({
     if (!error) setProducts(ps => ps.map(x => x.id === p.id ? { ...x, active: !x.active } : x))
   }
 
+  const stockBadge = (stock: number) => {
+    if (stock === 0) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">Hết hàng</span>
+    if (stock < 10) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">⚠ {stock}</span>
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">{stock}</span>
+  }
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
+    <div className="max-w-7xl mx-auto space-y-5">
+
+      {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl lg:text-3xl font-bold text-stone-800">Sản phẩm</h1>
-          <p className="text-stone-500 text-sm mt-0.5">{products.length} sản phẩm tổng cộng</p>
+          <p className="text-stone-400 text-sm mt-0.5">Quản lý toàn bộ danh mục sản phẩm</p>
         </div>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+        <button onClick={openCreate} className="btn-primary flex items-center gap-2 shadow-sm">
           <Plus className="w-4 h-4" /> Thêm sản phẩm
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Tìm sản phẩm..." className="input pl-10 py-2.5 text-sm" />
+      {/* ── Stats cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Tổng sản phẩm', value: stats.total, icon: Package, color: 'bg-blue-50 text-blue-600', border: 'border-blue-100' },
+          { label: 'Đang bán', value: stats.active, icon: TrendingUp, color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' },
+          { label: 'Hết hàng', value: stats.outOfStock, icon: AlertTriangle, color: 'bg-red-50 text-red-500', border: 'border-red-100' },
+          { label: 'Đang giảm giá', value: stats.onSale, icon: Tag, color: 'bg-amber-50 text-amber-600', border: 'border-amber-100' },
+        ].map((s, i) => (
+          <div key={i} className={cn('rounded-xl border p-4 flex items-center gap-3 bg-white', s.border)}>
+            <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', s.color)}>
+              <s.icon className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-stone-800 leading-none">{s.value}</p>
+              <p className="text-xs text-stone-400 mt-0.5">{s.label}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Table */}
-      <div className="card overflow-hidden">
+      {/* ── Filters ── */}
+      <div className="bg-white rounded-xl border border-stone-100 p-3 flex flex-wrap gap-2 items-center">
+        <div className="flex items-center gap-1.5 text-stone-400 text-sm px-1">
+          <Filter className="w-3.5 h-3.5" /> Lọc:
+        </div>
+
+        {/* Search */}
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Tìm theo tên..." className="w-full pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-moss-400 bg-stone-50" />
+        </div>
+
+        {/* Category */}
+        <div className="relative">
+          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+            className="pl-3 pr-7 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-moss-400 bg-stone-50 appearance-none cursor-pointer">
+            <option value="">Tất cả danh mục</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400 pointer-events-none" />
+        </div>
+
+        {/* Status */}
+        <div className="relative">
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+            className="pl-3 pr-7 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-moss-400 bg-stone-50 appearance-none cursor-pointer">
+            <option value="">Tất cả trạng thái</option>
+            <option value="active">Đang bán</option>
+            <option value="inactive">Đã ẩn</option>
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400 pointer-events-none" />
+        </div>
+
+        {/* Stock */}
+        <div className="relative">
+          <select value={filterStock} onChange={e => setFilterStock(e.target.value)}
+            className="pl-3 pr-7 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-moss-400 bg-stone-50 appearance-none cursor-pointer">
+            <option value="">Tất cả kho</option>
+            <option value="out">Hết hàng (0)</option>
+            <option value="low">Sắp hết (&lt;10)</option>
+            <option value="ok">Còn hàng (≥10)</option>
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400 pointer-events-none" />
+        </div>
+
+        {/* Clear */}
+        {(search || filterCategory || filterStatus || filterStock) && (
+          <button onClick={() => { setSearch(''); setFilterCategory(''); setFilterStatus(''); setFilterStock('') }}
+            className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors">
+            Xoá lọc ✕
+          </button>
+        )}
+
+        <span className="ml-auto text-xs text-stone-400">{filtered.length} / {products.length} sản phẩm</span>
+      </div>
+
+      {/* ── Table ── */}
+      <div className="bg-white rounded-xl border border-stone-100 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-stone-50 border-b border-stone-100">
-                <th className="text-left px-5 py-3 text-stone-500 font-medium">Sản phẩm</th>
-                <th className="text-left px-5 py-3 text-stone-500 font-medium hidden md:table-cell">Danh mục</th>
-                <th className="text-left px-5 py-3 text-stone-500 font-medium">Giá</th>
-                <th className="text-left px-5 py-3 text-stone-500 font-medium hidden sm:table-cell">Kho</th>
-                <th className="text-left px-5 py-3 text-stone-500 font-medium">Hiển thị</th>
-                <th className="text-right px-5 py-3 text-stone-500 font-medium">Thao tác</th>
+              <tr className="bg-stone-50">
+                <th className="text-left px-5 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Sản phẩm</th>
+                <th className="text-left px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100 hidden md:table-cell">Danh mục</th>
+                <th className="text-left px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Giá</th>
+                <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100 hidden sm:table-cell">Kho</th>
+                <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Hiển thị</th>
+                <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-stone-100">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(p => (
-                <tr key={p.id} className="border-b border-stone-50 hover:bg-stone-50 transition-colors">
-                  <td className="px-5 py-3">
+              {filtered.map((p, idx) => (
+                <tr key={p.id}
+                  className={cn(
+                    'border-b border-stone-100 hover:bg-moss-50/40 transition-colors group',
+                    idx % 2 === 0 ? 'bg-white' : 'bg-stone-50/50'
+                  )}>
+
+                  {/* Sản phẩm */}
+                  <td className="px-5 py-3 border-r border-stone-100">
                     <div className="flex items-center gap-3">
-                      <img src={p.images?.[0] || 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=100'}
-                        alt={p.name} className="w-10 h-10 object-cover rounded-lg shrink-0" />
-                      <div>
-                        <p className="font-medium text-stone-800 line-clamp-1">{p.name}</p>
-                        {p.featured && (
-                          <span className="text-xs text-earth-600 flex items-center gap-1">
-                            <Star className="w-3 h-3 fill-current" /> Nổi bật
-                          </span>
-                        )}
+                      <img
+                        src={p.images?.[0] || 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=100'}
+                        alt={p.name}
+                        className="w-10 h-10 object-cover rounded-lg shrink-0 border border-stone-100 shadow-sm"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-medium text-stone-800 truncate max-w-[260px]">{p.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {p.featured && (
+                            <span className="text-xs text-amber-600 flex items-center gap-0.5 font-medium">
+                              <Star className="w-3 h-3 fill-current" /> Nổi bật
+                            </span>
+                          )}
+                          {p.sale_price && (
+                            <span className="text-xs bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded font-medium">Sale</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-stone-500 hidden md:table-cell">
-                    {(p.category as { name: string } | null)?.name ?? '—'}
-                  </td>
-                  <td className="px-5 py-3">
-                    <div>
-                      <p className="font-semibold text-stone-800">{formatPrice(p.sale_price ?? p.price)}</p>
-                      {p.sale_price && <p className="text-xs text-stone-400 line-through">{formatPrice(p.price)}</p>}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 hidden sm:table-cell">
-                    <span className={cn('font-medium', p.stock === 0 ? 'text-red-500' : p.stock <= 5 ? 'text-orange-500' : 'text-stone-700')}>
-                      {p.stock}
+
+                  {/* Danh mục */}
+                  <td className="px-4 py-3 border-r border-stone-100 hidden md:table-cell">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-stone-100 text-stone-600">
+                      {(p.category as { name: string } | null)?.name ?? '—'}
                     </span>
                   </td>
-                  <td className="px-5 py-3">
-                    <button onClick={() => toggleActive(p)} className="focus:outline-none">
+
+                  {/* Giá */}
+                  <td className="px-4 py-3 border-r border-stone-100">
+                    <p className="font-semibold text-stone-800 whitespace-nowrap">{formatPrice(p.sale_price ?? p.price)}</p>
+                    {p.sale_price && (
+                      <p className="text-xs text-stone-400 line-through whitespace-nowrap">{formatPrice(p.price)}</p>
+                    )}
+                  </td>
+
+                  {/* Kho */}
+                  <td className="px-4 py-3 border-r border-stone-100 text-center hidden sm:table-cell">
+                    {stockBadge(p.stock)}
+                  </td>
+
+                  {/* Toggle */}
+                  <td className="px-4 py-3 border-r border-stone-100 text-center">
+                    <button onClick={() => toggleActive(p)} className="focus:outline-none inline-flex items-center justify-center">
                       {p.active
-                        ? <ToggleRight className="w-6 h-6 text-moss-600" />
-                        : <ToggleLeft className="w-6 h-6 text-stone-300" />}
+                        ? <ToggleRight className="w-7 h-7 text-moss-600 drop-shadow-sm" />
+                        : <ToggleLeft className="w-7 h-7 text-stone-300" />}
                     </button>
                   </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openEdit(p)}
-                        className="p-2 text-stone-500 hover:text-moss-700 hover:bg-moss-50 rounded-lg transition-colors">
-                        <Pencil className="w-4 h-4" />
+
+                  {/* Thao tác */}
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button
+                        onClick={() => openEdit(p)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-moss-700 bg-moss-50 hover:bg-moss-100 border border-moss-200 rounded-lg transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" /> Sửa
                       </button>
-                      <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id}
-                        className="p-2 text-stone-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                        {deleting === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        disabled={deleting === p.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {deleting === p.id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Trash2 className="w-3.5 h-3.5" />}
+                        Xoá
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-12 text-stone-400">Không tìm thấy sản phẩm</td></tr>
+                <tr>
+                  <td colSpan={6} className="text-center py-16">
+                    <div className="flex flex-col items-center gap-2 text-stone-400">
+                      <Package className="w-10 h-10 opacity-30" />
+                      <p className="font-medium">Không tìm thấy sản phẩm</p>
+                      <p className="text-xs">Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm</p>
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal */}
+      {/* ── Modal ── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowModal(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />
           <div className="relative bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 sticky top-0 bg-white rounded-t-2xl z-10">
               <h2 className="font-bold text-stone-800 text-lg">{editing ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}</h2>
