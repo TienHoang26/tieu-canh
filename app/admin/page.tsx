@@ -22,7 +22,7 @@ type Product = {
   name: string
   price: number
   stock: number
-  category: string
+  category: { name: string } | null
   active: boolean
 }
 
@@ -105,11 +105,10 @@ export default function DashboardClient() {
         .order('created_at', { ascending: true })
         .gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString()),
       supabase.from('products')
-        .select('id, name, price, stock, category, active')
+        .select('id, name, price, stock, active, category:categories(name)')
         .eq('active', true)
-        .lt('stock', 10)
-        .order('stock', { ascending: true })
-        .limit(5),
+        .lt('stock',3)
+        .order('stock', { ascending: true }),
     ])
 
     setTotalOrders(orders ?? 0)
@@ -117,7 +116,7 @@ export default function DashboardClient() {
     setTotalUsers(users ?? 0)
     setTotalRevenue(delivered?.reduce((s, o) => s + o.total, 0) ?? 0)
     setRecentOrders((recent as Order[]) ?? [])
-    setLowStock((stockProds as Product[]) ?? [])
+    setLowStock((stockProds as unknown as Product[]) ?? [])
 
     // Build 30-day chart data
     const dayMap: Record<string, { đơn: number; doanh_thu: number }> = {}
@@ -329,7 +328,7 @@ export default function DashboardClient() {
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', padding: '20px' }}>
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>⚠️ Sắp hết hàng</div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>Sản phẩm còn dưới 10 sp</div>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>Sản phẩm còn dưới 3 sp</div>
           </div>
           {lowStock.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 0' }}>
@@ -338,24 +337,28 @@ export default function DashboardClient() {
               <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Không có sản phẩm nào sắp hết</div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 420, overflowY: 'auto', paddingRight: 4 }}>
               {lowStock.map(p => {
-                const pct = Math.min(100, Math.round((p.stock / 10) * 100))
-                const isCrit = p.stock <= 3
+                const pct = Math.min(100, Math.round((p.stock / 3) * 100))
+                const isEmpty = p.stock === 0
+                const isCrit = p.stock === 1
+                const isWarn = p.stock === 2
                 return (
-                  <div key={p.id} style={{ padding: '12px', borderRadius: 12, background: isCrit ? '#fff1f2' : '#fffbeb', border: `1px solid ${isCrit ? '#fecdd3' : '#fde68a'}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{p.name}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: isCrit ? '#be123c' : '#92400e', flexShrink: 0 }}>{isCrit ? '🔴' : '🟡'} {p.stock} sp</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>{p.category} · {formatPrice(p.price)}</div>
-                    <div style={{ height: 4, borderRadius: 3, background: '#f1f5f9', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 3, width: `${pct}%`, background: isCrit ? '#ef4444' : '#f59e0b' }} />
-                    </div>
-                    <div style={{ fontSize: 12, color: isCrit ? '#be123c' : '#92400e', fontWeight: 500, marginTop: 5 }}>
-                      {isCrit ? '⚡ Nhập hàng ngay!' : '📋 Cần nhập sớm'}
-                    </div>
-                  </div>
+                  <div key={p.id} style={{ padding: '12px', borderRadius: 12, background: isEmpty ? '#fff1f2' : isCrit ? '#fff7ed' : '#fefce8', border: `1px solid ${isEmpty ? '#fecdd3' : isCrit ? '#fed7aa' : '#fde68a'}` }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{p.name}</span>
+    <span style={{ fontSize: 13, fontWeight: 700, color: isEmpty ? '#be123c' : isCrit ? '#c2410c' : '#92400e', flexShrink: 0 }}>
+      {isEmpty ? '🔴' : isCrit ? '🟠' : '🟡'} {p.stock} sp
+    </span>
+  </div>
+  <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>{p.category?.name ?? '—'} · {formatPrice(p.price)}</div>
+  <div style={{ height: 4, borderRadius: 3, background: '#f1f5f9', overflow: 'hidden' }}>
+    <div style={{ height: '100%', borderRadius: 3, width: `${pct}%`, background: isEmpty ? '#ef4444' : isCrit ? '#f97316' : '#eab308' }} />
+  </div>
+  <div style={{ fontSize: 12, color: isEmpty ? '#be123c' : isCrit ? '#c2410c' : '#92400e', fontWeight: 500, marginTop: 5 }}>
+    {isEmpty ? '🚫 Hết hàng!' : isCrit ? '⚡ Cảnh báo gấp!' : '👁️ Cần theo dõi'}
+  </div>
+</div>
                 )
               })}
               <Link href="/admin/products" style={{ textAlign: 'center', fontSize: 13, color: '#16a34a', textDecoration: 'none', fontWeight: 500, padding: '8px', display: 'block' }}>
