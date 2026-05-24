@@ -10,9 +10,10 @@ import toast from 'react-hot-toast'
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, clearCart } = useCart()
+  const { items,removeItem, clearCart } = useCart()
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [form, setForm] = useState({
@@ -24,6 +25,7 @@ export default function CheckoutPage() {
     const saved = localStorage.getItem('selectedCartIds')
     if (saved) {
       setSelectedIds(new Set<string>(JSON.parse(saved)))
+      setMounted(true)
     }
   }, [])
 
@@ -71,13 +73,13 @@ export default function CheckoutPage() {
       }))
     )
 
-    clearCart()
-    localStorage.removeItem('selectedCartIds')
+    checkoutItems.forEach(i => removeItem(i.product.id))
+localStorage.removeItem('selectedCartIds')
     setSuccess(true)
     setLoading(false)
   }
 
-  if (checkoutItems.length === 0 && !success && selectedIds.size > 0) {
+  if (mounted && checkoutItems.length === 0 && !success) {
     return (
       <div className="min-h-screen bg-stone-50 pt-24 flex items-center justify-center">
         <div className="text-center">
@@ -146,7 +148,7 @@ export default function CheckoutPage() {
               <strong>Thanh toán:</strong> COD (thanh toán khi nhận hàng) hoặc chuyển khoản sau khi xác nhận đơn.
             </div>
 
-            <button type="submit" disabled={loading}
+            <button type="submit" disabled={loading || !mounted || checkoutItems.length === 0}
               className="btn-primary w-full flex items-center justify-center gap-2 py-4 text-base">
               {loading && <Loader2 className="w-5 h-5 animate-spin" />}
               Đặt hàng ngay
