@@ -17,6 +17,7 @@ import {
   Youtube,
   MessageCircle,
   Heart,
+  KeyRound,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCart } from '@/lib/cart-store'
@@ -380,22 +381,22 @@ export default function Navbar() {
                       )}
 
                       <Link
-                        href="/wishlist"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-red-50 hover:text-red-600"
-                      >
-                        <Heart className="w-4 h-4" />
-                        Yêu thích
-                      </Link>
+                      href="/profile"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
+>
+<User className="w-4 h-4" />
+  Hồ sơ cá nhân
+</Link>
 
-                      <Link
-                        href="/orders"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
-                      >
-                        <ShoppingBag className="w-4 h-4" />
-                        Đơn hàng
-                      </Link>
+<Link
+  href="/profile/change-password"
+  onClick={() => setUserMenuOpen(false)}
+  className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
+>
+  <KeyRound className="w-4 h-4" />
+  Đổi mật khẩu
+</Link>
 
                       <button
                         onClick={handleSignOut}
