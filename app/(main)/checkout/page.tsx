@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle, Loader2, ShoppingBag } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -10,18 +10,32 @@ import toast from 'react-hot-toast'
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, total, clearCart } = useCart()
+  const { items, clearCart } = useCart()
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [form, setForm] = useState({
     name: '', phone: '', address: '', note: '',
   })
 
-  const shipping = total() >= 500000 ? 0 : 30000
+  // Đọc localStorage sau khi mount xong
+  useEffect(() => {
+    const saved = localStorage.getItem('selectedCartIds')
+    if (saved) {
+      setSelectedIds(new Set<string>(JSON.parse(saved)))
+    }
+  }, [])
+
+  const checkoutItems = items.filter(i => selectedIds.has(i.product.id))
+  const selectedTotal = checkoutItems.reduce(
+    (sum, { product, quantity }) => sum + (product.sale_price ?? product.price) * quantity, 0
+  )
+  const shipping = selectedTotal >= 500000 ? 0 : 30000
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (items.length === 0) { toast.error('Giỏ hàng trống!'); return }
+    if (checkoutItems.length === 0) { toast.error('Giỏ hàng trống!'); return }
     setLoading(true)
 
     const supabase = createClient()
@@ -32,7 +46,7 @@ export default function CheckoutPage() {
       .from('orders')
       .insert({
         user_id: user.id,
-        total: total() + shipping,
+        total: selectedTotal + shipping,
         shipping_name: form.name,
         shipping_phone: form.phone,
         shipping_address: form.address,
@@ -49,7 +63,7 @@ export default function CheckoutPage() {
     }
 
     await supabase.from('order_items').insert(
-      items.map(i => ({
+      checkoutItems.map(i => ({
         order_id: order.id,
         product_id: i.product.id,
         quantity: i.quantity,
@@ -58,11 +72,12 @@ export default function CheckoutPage() {
     )
 
     clearCart()
+    localStorage.removeItem('selectedCartIds')
     setSuccess(true)
     setLoading(false)
   }
 
-  if (items.length === 0 && !success) {
+  if (checkoutItems.length === 0 && !success && selectedIds.size > 0) {
     return (
       <div className="min-h-screen bg-stone-50 pt-24 flex items-center justify-center">
         <div className="text-center">
@@ -142,7 +157,7 @@ export default function CheckoutPage() {
           <div className="card p-6 h-fit">
             <h2 className="font-bold text-stone-800 text-lg mb-4">Đơn hàng của bạn</h2>
             <div className="space-y-3 mb-4">
-              {items.map(({ product, quantity }) => (
+              {checkoutItems.map(({ product, quantity }) => (
                 <div key={product.id} className="flex gap-3 items-center">
                   <img src={product.images?.[0] || ''} alt={product.name}
                     className="w-12 h-12 object-cover rounded-lg" />
@@ -158,7 +173,7 @@ export default function CheckoutPage() {
             </div>
             <div className="border-t border-stone-100 pt-4 space-y-2 text-sm">
               <div className="flex justify-between text-stone-600">
-                <span>Tạm tính</span><span>{formatPrice(total())}</span>
+                <span>Tạm tính</span><span>{formatPrice(selectedTotal)}</span>
               </div>
               <div className="flex justify-between text-stone-600">
                 <span>Giao hàng</span>
@@ -168,7 +183,7 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between font-bold text-stone-800 text-base pt-1 border-t border-stone-100">
                 <span>Tổng cộng</span>
-                <span className="text-moss-700">{formatPrice(total() + shipping)}</span>
+                <span className="text-moss-700">{formatPrice(selectedTotal + shipping)}</span>
               </div>
             </div>
           </div>

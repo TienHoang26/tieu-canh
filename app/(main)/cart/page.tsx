@@ -1,12 +1,30 @@
 'use client'
 
+
 import Link from 'next/link'
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, ArrowLeft } from 'lucide-react'
 import { useCart } from '@/lib/cart-store'
 import { formatPrice } from '@/lib/utils'
+import { useState, useEffect } from 'react'
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, total } = useCart()
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+  () => new Set(items.map(i => i.product.id))
+)
+useEffect(() => {
+  localStorage.setItem('selectedCartIds', JSON.stringify([...selectedIds]))
+}, [selectedIds])
+const toggleItem = (id: string) => setSelectedIds(prev => {
+  const next = new Set(prev)
+  next.has(id) ? next.delete(id) : next.add(id)
+  return next
+})
+const selectedItems = items.filter(i => selectedIds.has(i.product.id))
+const selectedTotal = () => selectedItems.reduce(
+  (sum, { product, quantity }) => sum + (product.sale_price ?? product.price) * quantity, 0
+)
 
   if (items.length === 0) {
     return (
@@ -23,7 +41,7 @@ export default function CartPage() {
     )
   }
 
-  const shipping = total() >= 500000 ? 0 : 30000
+  const shipping = selectedTotal() >= 500000 ? 0 : 30000
 
   return (
     <div className="min-h-screen bg-stone-50 pt-20 lg:pt-24">
@@ -42,6 +60,15 @@ export default function CartPage() {
           <div className="lg:col-span-2 space-y-4">
             {items.map(({ product, quantity }) => (
               <div key={product.id} className="card p-4 flex gap-4">
+                 <div className="flex items-center shrink-0">
+    <input
+      type="checkbox"
+      checked={selectedIds.has(product.id)}
+      onChange={() => toggleItem(product.id)}
+      className="w-5 h-5 accent-moss-600 cursor-pointer rounded"
+      aria-label={`Chọn ${product.name}`}
+    />
+  </div>
                 <Link href={`/products/${product.slug}`} className="shrink-0">
                   <img
                     src={product.images?.[0] || 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=200'}
@@ -89,11 +116,14 @@ export default function CartPage() {
           <div className="lg:col-span-1">
             <div className="card p-6 sticky top-24">
               <h2 className="font-bold text-stone-800 text-lg mb-4">Tóm tắt đơn hàng</h2>
+              <p className="text-xs text-stone-400 mb-3">
+                Đang tính {selectedItems.length}/{items.length} sản phẩm được chọn
+              </p>
 
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between text-stone-600">
                   <span>Tạm tính</span>
-                  <span>{formatPrice(total())}</span>
+                  <span>{formatPrice(selectedTotal())}</span>
                 </div>
                 <div className="flex justify-between text-stone-600">
                   <span>Phí giao hàng</span>
@@ -108,14 +138,19 @@ export default function CartPage() {
                 )}
                 <div className="border-t border-stone-100 pt-3 flex justify-between font-bold text-stone-800 text-base">
                   <span>Tổng cộng</span>
-                  <span className="text-moss-700">{formatPrice(total() + shipping)}</span>
+                  <span className="text-moss-700">{formatPrice(selectedTotal() + shipping)}</span>
                 </div>
               </div>
 
-              <Link href="/checkout"
-                className="btn-primary w-full flex items-center justify-center gap-2 mt-6 py-3.5">
-                Tiến hành thanh toán <ArrowRight className="w-4 h-4" />
-              </Link>
+              {selectedItems.length > 0 ? (
+  <Link href="/checkout" className="btn-primary w-full flex items-center justify-center gap-2 mt-6 py-3.5">
+    Tiến hành thanh toán <ArrowRight className="w-4 h-4" />
+  </Link>
+) : (
+  <button disabled className="btn-primary w-full flex items-center justify-center gap-2 mt-6 py-3.5 opacity-40 cursor-not-allowed">
+    Chọn sản phẩm để thanh toán
+  </button>
+)}
               <Link href="/products"
                 className="w-full flex items-center justify-center gap-2 mt-3 text-sm text-stone-500 hover:text-stone-700 transition-colors">
                 <ArrowLeft className="w-4 h-4" /> Tiếp tục mua sắm

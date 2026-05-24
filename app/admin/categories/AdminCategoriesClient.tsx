@@ -60,7 +60,7 @@ export default function AdminCategoriesClient({
     setDeleting(null)
   }
 
-  const emojis: Record<string, string> = { zen: '🪨', terrarium: '🫙', 'bonsai-mini': '🌳', 'da-cat': '💎', 'reu-cay-canh': '🌿' }
+  const emojis: Record<string, string> = { zen: '🪨', terrarium: '🫙', 'Hon_non_bo': '🌳', 'da-cat': '💎', 'reu-cay-canh': '🌿' }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
