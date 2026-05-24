@@ -14,7 +14,7 @@ export default function CartPage() {
   () => new Set(items.map(i => i.product.id))
 )
 useEffect(() => {
-  localStorage.setItem('selectedCartIds', JSON.stringify([...selectedIds]))
+  localStorage.setItem('selectedCartIds', JSON.stringify(Array.from(selectedIds)))
 }, [selectedIds])
 const toggleItem = (id: string) => setSelectedIds(prev => {
   const next = new Set(prev)
