@@ -28,7 +28,6 @@ import type { Profile } from '@/types'
 export default function Navbar() {
   const pathname = usePathname()
 
-  // States
   const [mounted, setMounted] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -36,7 +35,6 @@ export default function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Stores
   const cartCount = useCart((s) => s.count())
   const { wishlistIds } = useWishlist()
   const wishlistCount = wishlistIds.size
@@ -46,7 +44,6 @@ export default function Navbar() {
 
     const supabase = createClient()
 
-    // Lấy user hiện tại
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
         const { data } = await supabase
@@ -54,12 +51,10 @@ export default function Navbar() {
           .select('*')
           .eq('id', user.id)
           .single()
-
         setProfile(data)
       }
     })
 
-    // Theo dõi auth state
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -69,14 +64,12 @@ export default function Navbar() {
           .select('*')
           .eq('id', session.user.id)
           .single()
-
         setProfile(data)
       } else {
         setProfile(null)
       }
     })
 
-    // Theo dõi scroll
     const onScroll = () => {
       setScrolled(window.scrollY > 20)
     }
@@ -89,16 +82,11 @@ export default function Navbar() {
     }
   }, [])
 
-  // Chưa mount thì không render
   if (!mounted) return null
 
   const handleSignOut = async () => {
     const supabase = createClient()
-
-    await supabase.auth.signOut({
-      scope: 'global',
-    })
-
+    await supabase.auth.signOut({ scope: 'global' })
     setProfile(null)
     setUserMenuOpen(false)
     window.location.href = '/auth/login'
@@ -106,11 +94,8 @@ export default function Navbar() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-
     if (searchQuery.trim()) {
-      window.location.href = `/search?q=${encodeURIComponent(
-        searchQuery.trim()
-      )}`
+      window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`
     }
   }
 
@@ -166,11 +151,7 @@ export default function Navbar() {
                 {
                   href: 'https://tiktok.com',
                   icon: (
-                    <svg
-                      className="w-3 h-3"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.77a4.85 4.85 0 01-1.01-.08z" />
                     </svg>
                   ),
@@ -223,17 +204,13 @@ export default function Navbar() {
                 onError={(e) => {
                   const t = e.currentTarget
                   t.style.display = 'none'
-                  ;(t.nextElementSibling as HTMLElement)?.classList.remove(
-                    'hidden'
-                  )
+                  ;(t.nextElementSibling as HTMLElement)?.classList.remove('hidden')
                   ;(t.nextElementSibling as HTMLElement)?.classList.add('flex')
                 }}
               />
-
               <div className="hidden w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-moss-600 rounded-xl items-center justify-center text-white font-bold text-xs flex-shrink-0 group-hover:bg-moss-700 transition-colors">
                 NVM
               </div>
-
               <div className="leading-tight min-w-0">
                 <div className="font-display font-bold text-base sm:text-lg lg:text-xl text-stone-800 whitespace-nowrap">
                   Sân Vườn Tiểu Cảnh{' '}
@@ -250,9 +227,7 @@ export default function Navbar() {
                   href={link.href}
                   className={cn(
                     'text-sm font-medium transition-colors hover:text-moss-600 whitespace-nowrap',
-                    pathname === link.href
-                      ? 'text-moss-600'
-                      : 'text-stone-600'
+                    pathname === link.href ? 'text-moss-600' : 'text-stone-600'
                   )}
                 >
                   {link.label}
@@ -353,54 +328,44 @@ export default function Navbar() {
                         ).charAt(0)}
                       </div>
                     )}
-
                     <span className="hidden sm:block text-sm font-semibold text-stone-800 max-w-[120px] truncate">
                       {profile.full_name || 'Người dùng'}
                     </span>
                   </button>
 
                   {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-stone-100 py-2 z-50">
-                      <div className="px-4 py-2 border-b border-stone-100">
-                        <p className="font-semibold text-sm text-stone-800 truncate">
-                          {profile.full_name || 'Người dùng'}
-                        </p>
-                        <p className="text-xs text-stone-500 truncate">
-                          {profile.email}
-                        </p>
-                      </div>
-
+                    <div className="absolute left-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-stone-100 py-2 z-50">
                       {profile.role === 'admin' && (
                         <Link
                           href="/admin"
                           onClick={() => setUserMenuOpen(false)}
-                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
+                          className="flex items-center gap-2 px-5 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
                         >
                           Quản trị
                         </Link>
                       )}
 
                       <Link
-                      href="/profile"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
->
-<User className="w-4 h-4" />
-  Hồ sơ cá nhân
-</Link>
+                        href="/profile"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
+                      >
+                        <User className="w-4 h-4" />
+                        Hồ sơ cá nhân
+                      </Link>
 
-<Link
-  href="/profile/change-password"
-  onClick={() => setUserMenuOpen(false)}
-  className="flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
->
-  <KeyRound className="w-4 h-4" />
-  Đổi mật khẩu
-</Link>
+                      <Link
+                        href="/profile/change-password"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
+                      >
+                        <KeyRound className="w-4 h-4" />
+                        Đổi mật khẩu
+                      </Link>
 
                       <button
                         onClick={handleSignOut}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                        className="w-full flex items-center gap-2 px-5 py-2.5 text-sm text-red-600 hover:bg-red-50"
                       >
                         <LogOut className="w-4 h-4" />
                         Đăng xuất

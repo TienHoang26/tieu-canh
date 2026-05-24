@@ -27,12 +27,14 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user }, error } = await supabase.auth.getUser()
 
-// Nếu có cookie nhưng session invalid → xóa cookie trên supabaseResponse
-if (error && request.cookies.getAll().some(c => c.name.startsWith('sb-'))) {
-  request.cookies.getAll()
-    .filter(c => c.name.startsWith('sb-'))
-    .forEach(c => supabaseResponse.cookies.delete(c.name))
-}
+  // ✅ FIX: Xóa cookie SAU KHI getUser() xong, không dùng supabaseResponse cũ
+  if (error && request.cookies.getAll().some(c => c.name.startsWith('sb-'))) {
+    const cleanResponse = NextResponse.next({ request })
+    request.cookies.getAll()
+      .filter(c => c.name.startsWith('sb-'))
+      .forEach(c => cleanResponse.cookies.delete(c.name))
+    return cleanResponse  // ← trả về response sạch cookie
+  }
 
   const { pathname } = request.nextUrl
 
