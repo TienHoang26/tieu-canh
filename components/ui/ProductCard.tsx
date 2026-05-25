@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ShoppingCart, Heart, Star } from 'lucide-react'
-import { useCart } from '@/lib/cart-store'
+import { useCart } from '@/lib/use-cart'
 import { useWishlist } from '@/lib/wishlist-store'
 import { flyToTarget } from '@/lib/fly-animation'
 import { formatPrice, cn } from '@/lib/utils'
@@ -13,7 +13,7 @@ import type { Product } from '@/types'
 
 export default function ProductCard({ product }: { product: Product }) {
   const [mounted, setMounted] = useState(false)
-  const addItem = useCart(s => s.addItem)
+  const { addItem } = useCart()
   const router = useRouter()
   const { isWished, toggle } = useWishlist()
 

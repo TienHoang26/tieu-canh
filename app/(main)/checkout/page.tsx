@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle, Loader2, ShoppingBag } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useCart } from '@/lib/cart-store'
+import { useCart } from '@/lib/use-cart'
 import { formatPrice } from '@/lib/utils'
 import toast from 'react-hot-toast'
 

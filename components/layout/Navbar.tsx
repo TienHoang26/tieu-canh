@@ -20,7 +20,8 @@ import {
   KeyRound,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useCart } from '@/lib/cart-store'
+import { clearCartCache } from '@/lib/cart-store'
+import { useCart } from '@/lib/use-cart'
 import { useWishlist } from '@/lib/wishlist-store'
 import { cn } from '@/lib/utils'
 import type { Profile } from '@/types'
@@ -35,7 +36,8 @@ export default function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const cartCount = useCart((s) => s.count())
+  const { count } = useCart()
+  const cartCount = count()
   const { wishlistIds } = useWishlist()
   const wishlistCount = wishlistIds.size
 
@@ -58,17 +60,18 @@ export default function Navbar() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-        setProfile(data)
-      } else {
-        setProfile(null)
-      }
-    })
+  if (session?.user) {
+    localStorage.setItem('userId', session.user.id)  // ← thêm dòng này
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single()
+    setProfile(data)
+  } else {
+    setProfile(null)
+  }
+})
 
     const onScroll = () => {
       setScrolled(window.scrollY > 20)
@@ -87,6 +90,8 @@ export default function Navbar() {
   const handleSignOut = async () => {
     const supabase = createClient()
     await supabase.auth.signOut({ scope: 'global' })
+    localStorage.removeItem('userId')   
+  clearCartCache()
     setProfile(null)
     setUserMenuOpen(false)
     window.location.href = '/auth/login'

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ShoppingCart, Minus, Plus, Truck, Shield, Star, ArrowLeft, Tag } from 'lucide-react'
-import { useCart } from '@/lib/cart-store'
+import { useCart } from '@/lib/use-cart'
 import { formatPrice, cn } from '@/lib/utils'
 import ProductCard from '@/components/ui/ProductCard'
 import toast from 'react-hot-toast'
@@ -12,7 +12,7 @@ import type { Product } from '@/types'
 export default function ProductDetailClient({ product, related }: { product: Product; related: Product[] }) {
   const [qty, setQty] = useState(1)
   const [activeImg, setActiveImg] = useState(0)
-  const addItem = useCart(s => s.addItem)
+  const { addItem } = useCart()
 
   const images = product.images?.length ? product.images : ['https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800']
   const price = product.sale_price ?? product.price
@@ -95,7 +95,9 @@ export default function ProductDetailClient({ product, related }: { product: Pro
               </div>
             </div>
 
-            <p className="text-stone-600 leading-relaxed">{product.description}</p>
+            <div className="text-stone-600 leading-relaxed whitespace-pre-line">
+  {product.description}
+</div>
 
             {/* Tags */}
             {product.tags?.length > 0 && (
