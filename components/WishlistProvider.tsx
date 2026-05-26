@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { AuthChangeEvent } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { useWishlist } from '@/lib/wishlist-store'
 
@@ -15,7 +16,7 @@ export default function WishlistProvider() {
     fetch()
 
     // Lắng nghe auth thay đổi
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
       if (event === 'SIGNED_IN') {
         fetch()  // load wishlist của user mới
       }
@@ -24,7 +25,9 @@ export default function WishlistProvider() {
       }
     })
 
-    return () => listener.subscription.unsubscribe()
+    return () => {
+      listener?.subscription?.unsubscribe()
+    }
   }, [fetch, reset])
 
   return null

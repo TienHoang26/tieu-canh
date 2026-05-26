@@ -17,14 +17,16 @@ export default function CartPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.replace('/auth/login?redirect=/cart')
       } else {
         setIsLoggedIn(true)
       }
       setAuthChecked(true)
-    })
+    }
+    checkUser()
   }, [router])
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
@@ -46,7 +48,6 @@ export default function CartPage() {
     (sum, { product, quantity }) => sum + (product.sale_price ?? product.price) * quantity, 0
   )
 
-  // Đang kiểm tra auth → hiện loading
   if (!authChecked || !isLoggedIn) {
     return (
       <div className="min-h-screen bg-stone-50 pt-24 flex items-center justify-center">

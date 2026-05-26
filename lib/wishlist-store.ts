@@ -18,8 +18,13 @@ export const useWishlist = create<WishlistStore>((set, get) => ({
 
   fetch: async () => {
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { set({ loaded: true }); return }
+    const response = await supabase.auth.getUser()
+    const user = response.data.user
+    
+    if (!user) { 
+      set({ loaded: true }); 
+      return 
+    }
 
     const { data } = await supabase
       .from('wishlists')
@@ -27,7 +32,7 @@ export const useWishlist = create<WishlistStore>((set, get) => ({
       .eq('user_id', user.id)
 
     set({
-      wishlistIds: new Set(data?.map(r => r.product_id) ?? []),
+      wishlistIds: new Set(data?.map((r: { product_id: string }) => r.product_id) ?? []),
       loaded: true,
     })
   },
@@ -37,7 +42,9 @@ export const useWishlist = create<WishlistStore>((set, get) => ({
 
   toggle: async (productId: string) => {
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const response = await supabase.auth.getUser()
+    const user = response.data.user
+    
     if (!user) return 'unauthenticated'
 
     const current = get().wishlistIds

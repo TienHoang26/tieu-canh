@@ -114,13 +114,13 @@ export default function DashboardClient() {
     setTotalOrders(orders ?? 0)
     setTotalProducts(products ?? 0)
     setTotalUsers(users ?? 0)
-    setTotalRevenue(delivered?.reduce((s, o) => s + o.total, 0) ?? 0)
+    setTotalRevenue(delivered?.reduce((s: number, o: { total: number }) => s + o.total, 0) ?? 0)
     setRecentOrders((recent as Order[]) ?? [])
     setLowStock((stockProds as unknown as Product[]) ?? [])
 
     // Build 30-day chart data
     const dayMap: Record<string, { đơn: number; doanh_thu: number }> = {}
-    allOrders?.forEach(o => {
+    allOrders?.forEach((o: { created_at: string; total: number; status: string }) => {
       const d = formatDate(o.created_at)
       if (!dayMap[d]) dayMap[d] = { đơn: 0, doanh_thu: 0 }
       dayMap[d].đơn++
@@ -130,7 +130,7 @@ export default function DashboardClient() {
 
     // Build status breakdown
     const statusMap: Record<string, number> = {}
-    allOrders?.forEach(o => { statusMap[o.status] = (statusMap[o.status] || 0) + 1 })
+    allOrders?.forEach((o: { status: string }) => { statusMap[o.status] = (statusMap[o.status] || 0) + 1 })
     setOrdersByStatus(Object.entries(statusMap).map(([status, count]) => ({ status, count })))
 
     setLastUpdate(new Date())

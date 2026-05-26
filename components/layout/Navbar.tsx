@@ -19,6 +19,7 @@ import {
   Heart,
   KeyRound,
 } from 'lucide-react'
+import { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { clearCartCache } from '@/lib/cart-store'
 import { useCart } from '@/lib/use-cart'
@@ -46,7 +47,9 @@ export default function Navbar() {
 
     const supabase = createClient()
 
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    // Fix: Thêm type cho response
+    supabase.auth.getUser().then(async (response: { data: { user: any } }) => {
+      const { user } = response.data
       if (user) {
         const { data } = await supabase
           .from('profiles')
@@ -57,21 +60,22 @@ export default function Navbar() {
       }
     })
 
+    // Fix: Sửa lỗi onAuthStateChange
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-  if (session?.user) {
-    localStorage.setItem('userId', session.user.id)  // ← thêm dòng này
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .single()
-    setProfile(data)
-  } else {
-    setProfile(null)
-  }
-})
+    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
+      if (session?.user) {
+        localStorage.setItem('userId', session.user.id)
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+        setProfile(data)
+      } else {
+        setProfile(null)
+      }
+    })
 
     const onScroll = () => {
       setScrolled(window.scrollY > 20)
@@ -91,7 +95,7 @@ export default function Navbar() {
     const supabase = createClient()
     await supabase.auth.signOut({ scope: 'global' })
     localStorage.removeItem('userId')   
-  clearCartCache()
+    clearCartCache()
     setProfile(null)
     setUserMenuOpen(false)
     window.location.href = '/auth/login'
@@ -326,11 +330,7 @@ export default function Navbar() {
                       />
                     ) : (
                       <div className="w-8 h-8 bg-moss-600 rounded-full flex items-center justify-center text-white text-sm font-bold uppercase">
-                        {(
-                          profile.full_name?.split(' ').pop() ||
-                          profile.email ||
-                          'U'
-                        ).charAt(0)}
+                        {(profile.full_name?.split(' ').pop() || profile.email || 'U').charAt(0)}
                       </div>
                     )}
                     <span className="hidden sm:block text-sm font-semibold text-stone-800 max-w-[120px] truncate">
@@ -353,7 +353,7 @@ export default function Navbar() {
                       <Link
                         href="/profile"
                         onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm text-stone-700 hover:bg-moss-50"
                       >
                         <User className="w-4 h-4" />
                         Hồ sơ cá nhân
