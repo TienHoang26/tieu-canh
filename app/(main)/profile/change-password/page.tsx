@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import {  useState, useEffect  } from 'react'
 import { useRouter } from 'next/navigation'
 import { KeyRound, Eye, EyeOff, Loader2, CheckCircle, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
 export default function ChangePasswordPage() {
+  console.log('PAGE LOADED V2')
   const router = useRouter()
   const [newPw, setNewPw] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -15,42 +16,49 @@ export default function ChangePasswordPage() {
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
 
+  useEffect(() => {
+    setSaving(false)
+    setDone(false)
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
   if (newPw.length < 6) { toast.error('Mật khẩu mới phải có ít nhất 6 ký tự!'); return }
   if (newPw !== confirm) { toast.error('Mật khẩu xác nhận không khớp!'); return }
 
   setSaving(true)
-  console.log('BẮT ĐẦU SUBMIT')
   try {
     const supabase = createClient()
-    
-    // Debug: kiểm tra session hiện tại
-    const { data: sessionData } = await supabase.auth.getSession()
-    console.log('SESSION HIỆN TẠI:', JSON.stringify(sessionData, null, 2))
-    
     const { data, error } = await supabase.auth.updateUser({ password: newPw })
-    console.log('UPDATE RESULT - data:', data, 'error:', error)
-    
-    if (error) {
-      toast.error(error.message)
+    console.log('UPDATE data:', data)
+    console.log('UPDATE error:', error)
+    console.log('ERROR status:', error?.status)
+    console.log('ERROR message:', error?.message)
+
+if (error) {
+      if (error.status === 422 || error.message.includes('session')) {
+        toast.error('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!')
+        setTimeout(() => {
+          window.location.href = '/auth/login'
+        }, 1500)
+      } else {
+        toast.error(error.message)
+      }
+      setSaving(false)
     } else {
-  toast.success('Đổi mật khẩu thành công!')
-  setDone(true)
-  setSaving(false)
-  // Không await signOut — chạy nền rồi redirect
-  supabase.auth.signOut().finally(() => {
-    router.push('/login')
-  })
-}
+      toast.success('Đổi mật khẩu thành công!')
+      setSaving(false)   // ← thêm dòng này
+      setDone(true)
+      setTimeout(() => {
+        window.location.href = '/auth/login'
+      }, 1000)
+    }
   } catch (err) {
     console.error('EXCEPTION:', err)
     toast.error('Có lỗi xảy ra, vui lòng thử lại!')
-  } finally {
-    
+    setSaving(false)
   }
 }
-
   return (
     <div className="min-h-screen bg-stone-50 pt-20 lg:pt-24">
       <div className="max-w-md mx-auto px-4 py-10">
