@@ -139,7 +139,6 @@ export default function ProfileClient({
               {[
                 { icon: <Heart className="w-5 h-5" />, label: 'Yêu thích', sub: 'Sản phẩm bạn đã thích', href: '/wishlist' },
                 { icon: <Clock className="w-5 h-5" />, label: 'Đã xem', sub: 'Xem lại nhanh', href: '/recently-viewed' },
-                { icon: <Tag className="w-5 h-5" />, label: 'Voucher', sub: 'Mã giảm giá của bạn', href: '/vouchers' },
                 { icon: <ShoppingBag className="w-5 h-5" />, label: 'Đơn hàng', sub: 'Quản lý đơn', href: '/orders' },
               ].map((item) => (
                 <Link
