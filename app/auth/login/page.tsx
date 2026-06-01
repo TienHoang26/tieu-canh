@@ -339,14 +339,14 @@ function LoginRegisterForm() {
         .select('role')
         .eq('id', data.user.id)
         .single()
+        
+toast.success('Đăng nhập thành công!')
 
-      toast.success('Đăng nhập thành công!')
-
-      if (profile?.role === 'admin') {
-        router.push('/admin')
-      } else {
-        router.push(redirect)
-      }
+if (profile?.role === 'admin') {
+  window.location.href = '/admin'
+} else {
+  window.location.href = redirect
+}
     } catch (err) {
       console.error('Login error:', err)
       toast.error('Có lỗi xảy ra, thử lại!')
