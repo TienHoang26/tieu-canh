@@ -91,9 +91,11 @@ export default function Navbar() {
   if (!mounted) return null
 
   const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut({ scope: 'global' })
-    localStorage.removeItem('userId')   
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut({ scope: 'local' })
+    } catch (_) {}
+    localStorage.removeItem('userId')
     clearCartCache()
     setProfile(null)
     setUserMenuOpen(false)
