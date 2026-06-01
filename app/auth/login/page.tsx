@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Mail, Lock, Eye, EyeOff, Loader2, Leaf, ArrowRight, ArrowLeft, User } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Loader2, Leaf, ArrowRight, ArrowLeft, User, LogIn, UserPlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
@@ -339,14 +339,12 @@ function LoginRegisterForm() {
         .select('role')
         .eq('id', data.user.id)
         .single()
-        
-toast.success('Đăng nhập thành công!')
 
-if (profile?.role === 'admin') {
-  window.location.href = '/admin'
-} else {
-  window.location.href = redirect
-}
+      toast.success('Đăng nhập thành công!')
+
+      const destination = profile?.role === 'admin' ? '/admin' : redirect
+      router.push(destination)
+      router.refresh()
     } catch (err) {
       console.error('Login error:', err)
       toast.error('Có lỗi xảy ra, thử lại!')
@@ -488,7 +486,7 @@ if (profile?.role === 'admin') {
               </div>
 
               <button onClick={handleLogin} disabled={loading} className="lp-btn">
-                {loading ? <Loader2 style={{ width: 17, height: 17 }} className="animate-spin" /> : <span>→</span>}
+                {loading ? <Loader2 style={{ width: 17, height: 17 }} className="animate-spin" /> : <LogIn style={{ width: 17, height: 17 }} />}
                 Đăng nhập
               </button>
 
@@ -568,7 +566,7 @@ if (profile?.role === 'admin') {
               </div>
 
               <button onClick={handleRegister} disabled={regLoading} className="lp-btn" style={{ marginTop: 6 }}>
-                {regLoading ? <Loader2 style={{ width: 17, height: 17 }} className="animate-spin" /> : <span>→</span>}
+                {regLoading ? <Loader2 style={{ width: 17, height: 17 }} className="animate-spin" /> : <UserPlus style={{ width: 17, height: 17 }} />}
                 Đăng ký
               </button>
 

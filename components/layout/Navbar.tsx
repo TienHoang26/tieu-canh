@@ -47,20 +47,19 @@ export default function Navbar() {
 
     const supabase = createClient()
 
-    // Fix: Thêm type cho response
-    supabase.auth.getUser().then(async (response: { data: { user: any } }) => {
-      const { user } = response.data
-      if (user) {
+    // Lấy session hiện tại khi mount (getSession nhanh hơn getUser vì không verify với server)
+    supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: Session | null } }) => {
+      if (session?.user) {
         const { data } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user.id)
+          .eq('id', session.user.id)
           .single()
         setProfile(data)
       }
     })
 
-    // Fix: Sửa lỗi onAuthStateChange
+    // Lắng nghe thay đổi auth (bao gồm SIGNED_IN khi redirect về sau login)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
@@ -329,8 +328,10 @@ export default function Navbar() {
                         className="w-8 h-8 rounded-full object-cover border-2 border-moss-200"
                       />
                     ) : (
-                      <div className="w-8 h-8 bg-moss-600 rounded-full flex items-center justify-center text-white text-sm font-bold uppercase">
-                        {(profile.full_name?.split(' ').pop() || profile.email || 'U').charAt(0)}
+                      <div className="w-8 h-8 bg-moss-600 rounded-full flex items-center justify-center text-white text-xs font-bold uppercase">
+                        {profile.full_name
+                          ? profile.full_name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
+                          : (profile.email || 'U').slice(0, 2).toUpperCase()}
                       </div>
                     )}
                     <span className="hidden sm:block text-sm font-semibold text-stone-800 max-w-[120px] truncate">
