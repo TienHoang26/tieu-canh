@@ -5,8 +5,6 @@ import { Playfair_Display, Lato } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import WishlistProvider from '@/components/WishlistProvider'
-import ChatBot from '@/components/layout/Chatbot'
-import NotificationToast from '@/components/layout/Notificationtoast'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -56,8 +54,6 @@ export default function RootLayout({
             },
           }}
         />
-        <ChatBot />
-        <NotificationToast />
       </body>
     </html>
   )
