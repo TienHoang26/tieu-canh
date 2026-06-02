@@ -24,16 +24,16 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_TEXT_COLOR: Record<string, string> = {
   pending:   'text-amber-500',
-  confirmed: 'text-indigo-500',
-  shipping:  'text-blue-500',
+  confirmed: 'text-moss-600',
+  shipping:  'text-moss-500',
   delivered: 'text-moss-600',
   cancelled: 'text-red-400',
 }
 
 const STATUS_ACCENT: Record<string, string> = {
   pending:   'bg-amber-400',
-  confirmed: 'bg-indigo-400',
-  shipping:  'bg-blue-400',
+  confirmed: 'bg-moss-500',
+  shipping:  'bg-moss-400',
   delivered: 'bg-moss-500',
   cancelled: 'bg-red-300',
 }
@@ -83,8 +83,8 @@ export default async function OrdersPage({
                 className={`
                   flex items-center gap-1.5 px-4 py-2 rounded-xl border text-sm font-medium transition-all
                   ${isActive
-                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100'
-                    : 'bg-white border-stone-200 text-stone-600 hover:border-indigo-300 hover:text-indigo-600'}
+                    ? 'bg-moss-600 border-moss-600 text-white shadow-md shadow-moss-100'
+                    : 'bg-white border-stone-200 text-stone-600 hover:border-moss-300 hover:text-moss-600'}
                 `}
               >
                 <Icon className="w-4 h-4" />
@@ -111,7 +111,7 @@ export default async function OrdersPage({
                     <div>
                       <p className="font-bold text-stone-800 text-base">
                         Đơn hàng{' '}
-                        <span className="text-indigo-600 font-mono">
+                        <span className="text-moss-600 font-mono">
                           #{order.id.slice(0, 8).toUpperCase()}
                         </span>
                       </p>
@@ -160,7 +160,7 @@ export default async function OrdersPage({
                     </div>
                     <Link
                       href={`/orders/${order.id}`}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-moss-600 hover:bg-moss-700 text-white text-sm font-medium transition-colors"
                     >
                       <Eye className="w-4 h-4" />
                       Xem chi tiết

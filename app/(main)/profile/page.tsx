@@ -8,8 +8,24 @@ export default async function ProfilePage() {
   if (!user) redirect('/auth/login?redirect=/profile')
 
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-  const { count: orderCount } = await supabase
-    .from('orders').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
 
-  return <ProfileClient profile={profile} orderCount={orderCount ?? 0} />
+  const statuses = ['pending', 'confirmed', 'shipping', 'delivered'] as const
+  const counts = await Promise.all(
+    statuses.map(s =>
+      supabase.from('orders').select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id).eq('status', s)
+        .then(({ count }) => count ?? 0)
+    )
+  )
+  const [pendingCount, confirmedCount, shippingCount, deliveredCount] = counts
+
+  return (
+    <ProfileClient
+      profile={profile}
+      pendingCount={pendingCount}
+      confirmedCount={confirmedCount}
+      shippingCount={shippingCount}
+      deliveredCount={deliveredCount}
+    />
+  )
 }
