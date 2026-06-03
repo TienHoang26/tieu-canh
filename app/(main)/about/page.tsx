@@ -59,10 +59,10 @@ export default function AboutPage() {
               </h2>
               <div className="space-y-4 text-stone-600 leading-relaxed">
                 <p>
-                  Năm 2018, người sáng lập Trần Minh Khoa bắt đầu học nghệ thuật tiểu cảnh Zen từ một người thầy Nhật Bản. Điều đầu tiên ông học được không phải là kỹ thuật, mà là triết lý: <em>"Thiên nhiên không cần hoàn hảo. Nó chỉ cần thật."</em>
+                  Năm 2018, người sáng lập ông Nguyễn Viết Mạnh bắt đầu học nghệ thuật tiểu cảnh Zen từ một người thầy Nhật Bản. Điều đầu tiên ông học được không phải là kỹ thuật, mà là triết lý: <em>"Thiên nhiên không cần hoàn hảo. Nó chỉ cần thật."</em>
                 </p>
                 <p>
-                  Từ góc ban công nhỏ, những tác phẩm đầu tiên ra đời — mộc mạc, thô ráp nhưng đầy sức sống. Bạn bè và người thân xin mua. Rồi người quen của người quen xin mua. Và Tiểu Cảnh Việt ra đời như vậy, không theo kế hoạch, chỉ theo tình yêu.
+                  Từ góc ban công nhỏ, những tác phẩm đầu tiên ra đời — mộc mạc, thô ráp nhưng đầy sức sống. Bạn bè và người thân xin mua. Rồi người quen của người quen xin mua. Và Sân Vườn Tiểu Cảnh NVM ra đời như vậy, không theo kế hoạch, chỉ theo tình yêu.
                 </p>
                 <p>
                   Hôm nay, với đội ngũ gồm các nghệ nhân, nhà thiết kế và chuyên gia chăm sóc cây, chúng tôi tự hào mang đến hơn 500 sản phẩm thủ công độc đáo, phục vụ hơn 2000 khách hàng trên toàn quốc.

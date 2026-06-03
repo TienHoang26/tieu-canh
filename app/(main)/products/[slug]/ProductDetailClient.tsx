@@ -8,6 +8,7 @@ import { formatPrice, cn } from '@/lib/utils'
 import ProductCard from '@/components/ui/ProductCard'
 import toast from 'react-hot-toast'
 import type { Product } from '@/types'
+import ReviewSection from './ReviewSection'
 
 export default function ProductDetailClient({ product, related }: { product: Product; related: Product[] }) {
   const [qty, setQty] = useState(1)
@@ -160,6 +161,8 @@ export default function ProductDetailClient({ product, related }: { product: Pro
             </div>
           </div>
         </div>
+
+        <ReviewSection productId={product.id} />
 
         {/* Related products */}
         {related.length > 0 && (
