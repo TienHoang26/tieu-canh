@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Star, User, ImageIcon, Loader2, ChevronDown } from 'lucide-react'
+import { Star, Loader2, ChevronDown, ShoppingBag } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Session } from '@supabase/supabase-js'
 import { cn } from '@/lib/utils'
@@ -15,9 +15,24 @@ interface Review {
   created_at: string
   reviewer_name: string | null
   user_id: string | null
+  order_id: string | null
 }
 
-function StarRating({ value, onChange, readonly = false }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
+interface Stats {
+  total: number
+  avg: number
+  dist: number[] // index 0 = 5★, 1 = 4★, ..., 4 = 1★
+}
+
+function StarRating({
+  value,
+  onChange,
+  readonly = false,
+}: {
+  value: number
+  onChange?: (v: number) => void
+  readonly?: boolean
+}) {
   const [hovered, setHovered] = useState(0)
   return (
     <div className="flex gap-1">
@@ -32,7 +47,10 @@ function StarRating({ value, onChange, readonly = false }: { value: number; onCh
           className={cn('transition-colors', readonly ? 'cursor-default' : 'cursor-pointer')}
         >
           <Star
-            className={cn('w-5 h-5 transition-colors', (hovered || value) >= i ? 'fill-amber-400 text-amber-400' : 'text-stone-300')}
+            className={cn(
+              'w-5 h-5 transition-colors',
+              (hovered || value) >= i ? 'fill-amber-400 text-amber-400' : 'text-stone-300',
+            )}
           />
         </button>
       ))}
@@ -46,7 +64,10 @@ function RatingBar({ label, count, total }: { label: string; count: number; tota
     <div className="flex items-center gap-2 text-sm">
       <span className="w-6 text-stone-500 text-xs">{label}★</span>
       <div className="flex-1 bg-stone-100 rounded-full h-2 overflow-hidden">
-        <div className="h-full bg-amber-400 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+        <div
+          className="h-full bg-amber-400 rounded-full transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
       </div>
       <span className="w-6 text-stone-400 text-xs text-right">{count}</span>
     </div>
@@ -62,6 +83,14 @@ export default function ReviewSection({ productId }: { productId: string }) {
   const [userId, setUserId] = useState<string | null>(null)
   const [userReview, setUserReview] = useState<Review | null>(null)
 
+  // Accurate stats from full DB — independent of pagination
+  const [stats, setStats] = useState<Stats>({ total: 0, avg: 0, dist: [0, 0, 0, 0, 0] })
+  const [loadingStats, setLoadingStats] = useState(true)
+
+  // Purchase verification
+  const [purchasedOrderId, setPurchasedOrderId] = useState<string | null>(null)
+  const [checkingPurchase, setCheckingPurchase] = useState(false)
+
   // Form
   const [rating, setRating] = useState(5)
   const [content, setContent] = useState('')
@@ -69,28 +98,74 @@ export default function ReviewSection({ productId }: { productId: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [showForm, setShowForm] = useState(false)
 
-  // Stats
-  const total = reviews.length
-  const avg = total > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / total : 0
-  const dist = [5, 4, 3, 2, 1].map(s => ({ star: s, count: reviews.filter(r => r.rating === s).length }))
-
   const PAGE_SIZE = 5
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      if (session?.user) {
-        setUserId(session.user.id)
-        setReviewerName(session.user.user_metadata?.full_name ?? '')
-      }
-    })
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }: { data: { session: Session | null } }) => {
+        if (session?.user) {
+          setUserId(session.user.id)
+          setReviewerName(session.user.user_metadata?.full_name ?? '')
+          checkPurchased(session.user.id)
+        }
+      })
     fetchReviews(0)
+    fetchStats()
   }, [productId])
 
+  // Sync userReview whenever reviews or userId changes
+  useEffect(() => {
+    if (userId) {
+      setUserReview(reviews.find(r => r.user_id === userId) ?? null)
+    }
+  }, [reviews, userId])
+
+  // ─── Fetch aggregate stats from full DB (not paginated) ────────────────────
+  const fetchStats = async () => {
+    setLoadingStats(true)
+    const supabase = createClient()
+
+    const { data } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('product_id', productId)
+
+    const rows = (data ?? []) as { rating: number }[]
+    const total = rows.length
+    const avg = total > 0 ? rows.reduce((s, r) => s + r.rating, 0) / total : 0
+    // dist[0] = count of 5★, dist[1] = 4★, ..., dist[4] = 1★
+    const dist = [5, 4, 3, 2, 1].map(s => rows.filter(r => r.rating === s).length)
+
+    setStats({ total, avg, dist })
+    setLoadingStats(false)
+  }
+
+  // ─── Check if the logged-in user has a delivered order containing this product
+  const checkPurchased = async (uid: string) => {
+    setCheckingPurchase(true)
+    const supabase = createClient()
+
+    const { data } = await supabase
+      .from('order_items')
+      .select('order_id, orders!inner(user_id, status)')
+      .eq('product_id', productId)
+      .eq('orders.user_id', uid)
+      .eq('orders.status', 'delivered')
+      .limit(1)
+      .maybeSingle()
+
+    setPurchasedOrderId((data as any)?.order_id ?? null)
+    setCheckingPurchase(false)
+  }
+
+  // ─── Fetch paginated review list ───────────────────────────────────────────
   const fetchReviews = async (p: number) => {
     p === 0 ? setLoading(true) : setLoadingMore(true)
     const supabase = createClient()
     const from = p * PAGE_SIZE
+
     const { data } = await supabase
       .from('reviews')
       .select('*')
@@ -99,27 +174,41 @@ export default function ReviewSection({ productId }: { productId: string }) {
       .range(from, from + PAGE_SIZE)
 
     const rows = (data ?? []) as Review[]
+
     if (p === 0) {
       setReviews(rows)
-      // check if user already reviewed
-      if (userId) setUserReview(rows.find(r => r.user_id === userId) ?? null)
     } else {
       setReviews(prev => [...prev, ...rows])
     }
-    setHasMore(rows.length > PAGE_SIZE - 1)
+
+    setHasMore(rows.length >= PAGE_SIZE)
     setPage(p)
     p === 0 ? setLoading(false) : setLoadingMore(false)
   }
 
+  // ─── Submit new review ─────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!reviewerName.trim()) { toast.error('Vui lòng nhập tên của bạn!'); return }
-    if (rating === 0) { toast.error('Vui lòng chọn số sao!'); return }
+    if (!reviewerName.trim()) {
+      toast.error('Vui lòng nhập tên của bạn!')
+      return
+    }
+    if (rating === 0) {
+      toast.error('Vui lòng chọn số sao!')
+      return
+    }
+    // Guard: double-check purchase on submit (prevents bypass via UI manipulation)
+    if (!purchasedOrderId) {
+      toast.error('Bạn cần mua sản phẩm này trước khi đánh giá!')
+      return
+    }
 
     setSubmitting(true)
     const supabase = createClient()
+
     const { error } = await supabase.from('reviews').insert({
       product_id: productId,
       user_id: userId,
+      order_id: purchasedOrderId,
       rating,
       content: content.trim() || null,
       reviewer_name: reviewerName.trim(),
@@ -133,57 +222,94 @@ export default function ReviewSection({ productId }: { productId: string }) {
       setContent('')
       setRating(5)
       setShowForm(false)
+      // Refresh both the list and the aggregate stats
       fetchReviews(0)
+      fetchStats()
     }
     setSubmitting(false)
   }
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    new Date(d).toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
 
-  if (loading) return (
-    <div className="flex justify-center py-12">
-      <Loader2 className="w-6 h-6 animate-spin text-stone-400" />
-    </div>
-  )
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-stone-400" />
+      </div>
+    )
+  }
 
   return (
     <div className="mt-16">
-      <h2 className="font-display text-2xl font-bold text-stone-800 mb-6">
-        Đánh giá sản phẩm
-      </h2>
+      <h2 className="font-display text-2xl font-bold text-stone-800 mb-6">Đánh giá sản phẩm</h2>
 
       <div className="bg-white rounded-3xl border border-stone-100 shadow-sm overflow-hidden">
 
         {/* Summary */}
         <div className="p-6 border-b border-stone-100">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
-            {/* Big avg */}
+
+            {/* Average score */}
             <div className="text-center sm:min-w-[120px]">
-              <div className="text-5xl font-bold text-stone-800">{total > 0 ? avg.toFixed(1) : '—'}</div>
-              <StarRating value={Math.round(avg)} readonly />
-              <p className="text-sm text-stone-400 mt-1">{total} đánh giá</p>
+              {loadingStats ? (
+                <Loader2 className="w-5 h-5 animate-spin text-stone-300 mx-auto" />
+              ) : (
+                <>
+                  <div className="text-5xl font-bold text-stone-800">
+                    {stats.total > 0 ? stats.avg.toFixed(1) : '—'}
+                  </div>
+                  <StarRating value={Math.round(stats.avg)} readonly />
+                  <p className="text-sm text-stone-400 mt-1">{stats.total} đánh giá</p>
+                </>
+              )}
             </div>
-            {/* Bars */}
+
+            {/* Rating bars */}
             <div className="flex-1 space-y-2 w-full">
-              {dist.map(d => <RatingBar key={d.star} label={String(d.star)} count={d.count} total={total} />)}
+              {[5, 4, 3, 2, 1].map((star, i) => (
+                <RatingBar
+                  key={star}
+                  label={String(star)}
+                  count={stats.dist[i]}
+                  total={stats.total}
+                />
+              ))}
             </div>
           </div>
 
-          {/* Write review button */}
+          {/* Write review CTA — only show if user hasn't reviewed yet */}
           {!userReview && (
-            <button
-              onClick={() => setShowForm(v => !v)}
-              className="mt-5 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-moss-600 hover:bg-moss-700 text-white text-sm font-semibold transition-colors"
-            >
-              <Star className="w-4 h-4" />
-              {showForm ? 'Ẩn form' : 'Viết đánh giá'}
-            </button>
+            <div className="mt-5">
+              {checkingPurchase ? (
+                <div className="flex items-center gap-2 text-sm text-stone-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Đang kiểm tra đơn hàng...
+                </div>
+              ) : purchasedOrderId ? (
+                <button
+                  onClick={() => setShowForm(v => !v)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-moss-600 hover:bg-moss-700 text-white text-sm font-semibold transition-colors"
+                >
+                  <Star className="w-4 h-4" />
+                  {showForm ? 'Ẩn form' : 'Viết đánh giá'}
+                </button>
+              ) : userId ? (
+                <div className="flex items-center gap-2 text-sm text-stone-400 italic">
+                  <ShoppingBag className="w-4 h-4 shrink-0" />
+                  Bạn cần mua và nhận sản phẩm này để có thể đánh giá.
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
 
-        {/* Form */}
-        {showForm && !userReview && (
+        {/* Review form */}
+        {showForm && !userReview && purchasedOrderId && (
           <div className="px-6 py-5 bg-moss-50/50 border-b border-stone-100 space-y-4">
             <p className="text-sm font-semibold text-stone-700">Đánh giá của bạn</p>
 
@@ -192,14 +318,12 @@ export default function ReviewSection({ productId }: { productId: string }) {
               <StarRating value={rating} onChange={setRating} />
             </div>
 
-            <div>
-              <input
-                className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100 bg-white"
-                placeholder="Tên của bạn *"
-                value={reviewerName}
-                onChange={e => setReviewerName(e.target.value)}
-              />
-            </div>
+            <input
+              className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100 bg-white"
+              placeholder="Tên của bạn *"
+              value={reviewerName}
+              onChange={e => setReviewerName(e.target.value)}
+            />
 
             <textarea
               className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100 bg-white resize-none"
@@ -214,7 +338,11 @@ export default function ReviewSection({ productId }: { productId: string }) {
               disabled={submitting}
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-moss-600 hover:bg-moss-700 text-white text-sm font-semibold transition-colors disabled:opacity-60"
             >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className="w-4 h-4" />}
+              {submitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Star className="w-4 h-4" />
+              )}
               Gửi đánh giá
             </button>
           </div>
@@ -228,11 +356,16 @@ export default function ReviewSection({ productId }: { productId: string }) {
                 <Star className="w-6 h-6 text-stone-300" />
               </div>
               <p className="text-base font-medium text-stone-500">Chưa có đánh giá nào</p>
-              <p className="text-sm text-stone-400 mt-1">Hãy là người đầu tiên đánh giá sản phẩm này!</p>
+              <p className="text-sm text-stone-400 mt-1">
+                Hãy là người đầu tiên đánh giá sản phẩm này!
+              </p>
             </div>
           ) : (
             reviews.map(r => (
-              <div key={r.id} className={cn('px-6 py-5 flex gap-4', r.user_id === userId && 'bg-moss-50/30')}>
+              <div
+                key={r.id}
+                className={cn('px-6 py-5 flex gap-4', r.user_id === userId && 'bg-moss-50/30')}
+              >
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-full bg-moss-100 flex items-center justify-center shrink-0">
                   <span className="text-sm font-bold text-moss-600">
@@ -243,9 +376,13 @@ export default function ReviewSection({ productId }: { productId: string }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-stone-800 text-sm">{r.reviewer_name || 'Ẩn danh'}</span>
+                      <span className="font-semibold text-stone-800 text-sm">
+                        {r.reviewer_name || 'Ẩn danh'}
+                      </span>
                       {r.user_id === userId && (
-                        <span className="text-[10px] bg-moss-100 text-moss-600 font-semibold px-2 py-0.5 rounded-full">Bạn</span>
+                        <span className="text-[10px] bg-moss-100 text-moss-600 font-semibold px-2 py-0.5 rounded-full">
+                          Bạn
+                        </span>
                       )}
                     </div>
                     <span className="text-xs text-stone-400">{formatDate(r.created_at)}</span>
@@ -260,7 +397,12 @@ export default function ReviewSection({ productId }: { productId: string }) {
                   {r.images?.length > 0 && (
                     <div className="flex gap-2 mt-3 flex-wrap">
                       {r.images.map((img, i) => (
-                        <img key={i} src={img} alt="" className="w-16 h-16 object-cover rounded-xl border border-stone-100" />
+                        <img
+                          key={i}
+                          src={img}
+                          alt=""
+                          className="w-16 h-16 object-cover rounded-xl border border-stone-100"
+                        />
                       ))}
                     </div>
                   )}
@@ -278,12 +420,15 @@ export default function ReviewSection({ productId }: { productId: string }) {
               disabled={loadingMore}
               className="flex items-center gap-2 mx-auto text-sm text-moss-600 hover:text-moss-800 font-semibold transition-colors"
             >
-              {loadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
+              {loadingMore ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
               Xem thêm đánh giá
             </button>
           </div>
         )}
-
       </div>
     </div>
   )
