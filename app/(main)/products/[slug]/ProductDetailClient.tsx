@@ -126,7 +126,20 @@ export default function ProductDetailClient({ product, related }: { product: Pro
                     className="w-12 h-12 flex items-center justify-center hover:bg-stone-100 transition-colors">
                     <Minus className="w-4 h-4" />
                   </button>
-                  <span className="w-12 text-center font-bold text-lg">{qty}</span>
+                  <input
+                  type="number"
+                  min={1}
+                  max={product.stock}
+                  value={qty}
+                  onChange={e => {
+                    const v = parseInt(e.target.value)
+                    if (!isNaN(v)) setQty(Math.min(product.stock, Math.max(1, v)))
+                    }}
+                  onBlur={e => {
+                    if (e.target.value === '' || parseInt(e.target.value) < 1) setQty(1)
+                    }}
+                  className="w-12 text-center font-bold text-lg bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-webkit-inner-spin-button]:appearance-none"
+                  />
                   <button onClick={() => setQty(Math.min(product.stock, qty + 1))}
                     className="w-12 h-12 flex items-center justify-center hover:bg-stone-100 transition-colors">
                     <Plus className="w-4 h-4" />
