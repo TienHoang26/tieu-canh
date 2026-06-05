@@ -2,25 +2,57 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, Loader2, ShoppingBag } from 'lucide-react'
+import { CheckCircle, Loader2, ShoppingBag, Banknote, CreditCard, Wallet, Smartphone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCart } from '@/lib/use-cart'
 import { formatPrice } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
+// ─── Payment methods (khớp với DB enum) ───────────────────────────────────────
+const PAYMENT_METHODS = [
+  {
+    value: 'cod',
+    label: 'Thanh toán khi nhận hàng',
+    short: 'COD',
+    icon: Banknote,
+    desc: 'Trả tiền mặt khi nhận hàng',
+  },
+  {
+    value: 'bank_transfer',
+    label: 'Chuyển khoản ngân hàng',
+    short: 'Bank',
+    icon: CreditCard,
+    desc: 'Chuyển khoản sau khi đặt hàng, shop xác nhận và giao',
+  },
+  {
+    value: 'momo',
+    label: 'Ví MoMo',
+    short: 'MoMo',
+    icon: Smartphone,
+    desc: 'Thanh toán qua ví điện tử MoMo',
+  },
+  {
+    value: 'vnpay',
+    label: 'Ví điện tử ZaloPay',
+    short: 'ZaloPay',
+    icon: Wallet,
+    desc: 'Thanh toán qua ZaloPay',
+  },
+]
+
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items,removeItem, clearCart } = useCart()
+  const { items, removeItem, clearCart } = useCart()
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<string>('cod')
   const [form, setForm] = useState({
     name: '', phone: '', address: '', note: '',
   })
 
-  // Đọc localStorage sau khi mount xong
   useEffect(() => {
     const saved = localStorage.getItem('selectedCartIds')
     if (saved) {
@@ -54,6 +86,8 @@ export default function CheckoutPage() {
         shipping_address: form.address,
         note: form.note || null,
         status: 'pending',
+        payment_method: paymentMethod,
+        payment_status: 'unpaid',
       })
       .select()
       .single()
@@ -74,7 +108,7 @@ export default function CheckoutPage() {
     )
 
     checkoutItems.forEach(i => removeItem(i.product.id))
-localStorage.removeItem('selectedCartIds')
+    localStorage.removeItem('selectedCartIds')
     setSuccess(true)
     setLoading(false)
   }
@@ -92,14 +126,35 @@ localStorage.removeItem('selectedCartIds')
   }
 
   if (success) {
+    const chosenMethod = PAYMENT_METHODS.find(m => m.value === paymentMethod)!
     return (
       <div className="min-h-screen bg-stone-50 pt-24 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <CheckCircle className="w-20 h-20 text-moss-600 mx-auto mb-6" />
           <h2 className="font-display text-3xl font-bold text-stone-800 mb-3">Đặt hàng thành công! 🎉</h2>
-          <p className="text-stone-500 mb-6 leading-relaxed">
+          <p className="text-stone-500 mb-4 leading-relaxed">
             Cảm ơn bạn đã mua hàng! Chúng tôi sẽ liên hệ xác nhận đơn trong vòng 30 phút.
           </p>
+
+          {/* Payment reminder */}
+          {paymentMethod !== 'cod' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 mb-6 text-left">
+              <p className="font-semibold mb-1">
+                <chosenMethod.icon className="inline w-4 h-4 mr-1" />
+                Thanh toán qua {chosenMethod.label}
+              </p>
+              {paymentMethod === 'bank_transfer' && (
+                <p>Vui lòng chuyển khoản sau khi nhận được thông tin tài khoản từ shop qua điện thoại/Zalo.</p>
+              )}
+              {paymentMethod === 'momo' && (
+                <p>Shop sẽ gửi số điện thoại MoMo để bạn thanh toán sau khi xác nhận đơn.</p>
+              )}
+              {paymentMethod === 'vnpay' && (
+                <p>Shop sẽ gửi thông tin thanh toán ZaloPay sau khi xác nhận đơn.</p>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-3 justify-center">
             <button onClick={() => router.push('/orders')} className="btn-primary">Xem đơn hàng</button>
             <button onClick={() => router.push('/products')} className="btn-outline">Tiếp tục mua</button>
@@ -144,12 +199,52 @@ localStorage.removeItem('selectedCartIds')
                 placeholder="Ghi chú cho người giao hàng..." />
             </div>
 
-            <div className="bg-moss-50 border border-moss-200 rounded-xl p-4 text-sm text-moss-700">
-              <strong>Thanh toán:</strong> COD (thanh toán khi nhận hàng) hoặc chuyển khoản sau khi xác nhận đơn.
+            {/* Payment method selector */}
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-2">
+                Phương thức thanh toán *
+              </label>
+              <div className="space-y-2">
+                {PAYMENT_METHODS.map(method => {
+                  const Icon = method.icon
+                  const isActive = paymentMethod === method.value
+                  return (
+                    <button
+                      key={method.value}
+                      type="button"
+                      onClick={() => setPaymentMethod(method.value)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                        isActive
+                          ? 'border-moss-500 bg-moss-50'
+                          : 'border-stone-200 bg-white hover:border-stone-300'
+                      }`}
+                    >
+                      {/* Radio dot */}
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        isActive ? 'border-moss-500' : 'border-stone-300'
+                      }`}>
+                        {isActive && <div className="w-2 h-2 rounded-full bg-moss-500" />}
+                      </div>
+
+                      <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-moss-600' : 'text-stone-400'}`} />
+
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${isActive ? 'text-moss-700' : 'text-stone-700'}`}>
+                          {method.label}
+                        </p>
+                        <p className="text-xs text-stone-400 mt-0.5">{method.desc}</p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
-            <button type="submit" disabled={loading || !mounted || checkoutItems.length === 0}
-              className="btn-primary w-full flex items-center justify-center gap-2 py-4 text-base">
+            <button
+              type="submit"
+              disabled={loading || !mounted || checkoutItems.length === 0}
+              className="btn-primary w-full flex items-center justify-center gap-2 py-4 text-base"
+            >
               {loading && <Loader2 className="w-5 h-5 animate-spin" />}
               Đặt hàng ngay
             </button>
@@ -181,6 +276,12 @@ localStorage.removeItem('selectedCartIds')
                 <span>Giao hàng</span>
                 <span className={shipping === 0 ? 'text-green-600 font-medium' : ''}>
                   {shipping === 0 ? 'Miễn phí' : formatPrice(shipping)}
+                </span>
+              </div>
+              <div className="flex justify-between text-stone-600">
+                <span>Thanh toán</span>
+                <span className="font-medium text-stone-700">
+                  {PAYMENT_METHODS.find(m => m.value === paymentMethod)?.short}
                 </span>
               </div>
               <div className="flex justify-between font-bold text-stone-800 text-base pt-1 border-t border-stone-100">
