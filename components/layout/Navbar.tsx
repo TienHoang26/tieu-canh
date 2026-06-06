@@ -60,21 +60,37 @@ export default function Navbar() {
     })
 
     // Lắng nghe thay đổi auth (bao gồm SIGNED_IN khi redirect về sau login)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
-      if (session?.user) {
-        localStorage.setItem('userId', session.user.id)
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-        setProfile(data)
-      } else {
-        setProfile(null)
-      }
-    })
+const {
+  data: { subscription },
+} = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
+  if (session?.user) {
+    localStorage.setItem('userId', session.user.id)
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single()
+
+    if (data) {
+      setProfile(data)
+    } else {
+      // Profile chưa có trong DB → fallback sang Google metadata
+      const meta = session.user.user_metadata
+setProfile({
+  id: session.user.id,
+  email: session.user.email ?? '',
+  full_name: meta?.full_name || meta?.name || null,
+  avatar_url: meta?.avatar_url || meta?.picture || null,
+  role: 'user',
+  phone: null,
+  address: null,
+  created_at: new Date().toISOString(),
+} as unknown as Profile)
+    }
+  } else {
+    setProfile(null)
+  }
+})
 
     const onScroll = () => {
       setScrolled(window.scrollY > 20)
