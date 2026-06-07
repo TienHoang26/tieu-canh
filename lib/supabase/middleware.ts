@@ -1,3 +1,4 @@
+// lib/supabase/middleware.ts
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -13,10 +14,13 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
+          // Bước 1: set vào request để các handler sau đọc được
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
+          // Bước 2: tạo lại response với request đã có cookie mới
           supabaseResponse = NextResponse.next({ request })
+          // Bước 3: set vào response để browser nhận được
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -25,10 +29,16 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // ✅ Dùng getUser() chuẩn, KHÔNG xóa cookie khi lỗi
+  // QUAN TRỌNG: phải gọi getUser() để middleware refresh token nếu cần
+  // Không dùng kết quả này để redirect tránh vòng lặp với callback
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
+
+  // Bỏ qua callback route - đang trong quá trình xử lý OAuth
+  if (pathname.startsWith('/api/auth/callback')) {
+    return supabaseResponse
+  }
 
   if (pathname.startsWith('/admin')) {
     if (!user) {

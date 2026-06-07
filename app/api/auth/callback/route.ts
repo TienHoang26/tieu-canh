@@ -1,4 +1,3 @@
-// app/api/auth/callback/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
@@ -7,14 +6,12 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 
-  console.log('=== CALLBACK HIT ===')
-  console.log('code:', code ? 'EXISTS' : 'MISSING')
-
   if (!code) {
     return NextResponse.redirect(`${origin}/auth/login`)
   }
 
-  const response = NextResponse.redirect(`${origin}${next}`)
+  // Dùng request làm nơi collect cookie tạm
+  const cookiesToForward: { name: string; value: string; options: any }[] = []
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,9 +22,7 @@ export async function GET(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options)
-          })
+          cookiesToSet.forEach((c) => cookiesToForward.push(c))
         },
       },
     }
@@ -35,35 +30,27 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
-  console.log('exchange error:', error)
-  console.log('exchange user:', data?.user?.email)
-
   if (error) {
     console.error('Auth callback error:', error.message)
     return NextResponse.redirect(`${origin}/auth/login?error=callback_failed`)
   }
 
   if (data.user) {
-    const user = data.user
-    const meta = user.user_metadata
-
-    console.log('upserting profile for:', user.email)
-    console.log('meta:', meta)
-
-    const { error: upsertError } = await supabase.from('profiles').upsert({
-      id: user.id,
-      email: user.email,
+    const meta = data.user.user_metadata
+    await supabase.from('profiles').upsert({
+      id: data.user.id,
+      email: data.user.email,
       full_name: meta?.full_name || meta?.name || null,
       avatar_url: meta?.avatar_url || meta?.picture || null,
       role: 'user',
-    }, {
-      onConflict: 'id',
-      ignoreDuplicates: false,
-    })
-
-    console.log('upsert error:', upsertError)
+    }, { onConflict: 'id', ignoreDuplicates: false })
   }
 
-  console.log('=== CALLBACK SUCCESS ===')
-  return response
+  // Gắn tất cả cookie session vào redirect response
+  const redirectResponse = NextResponse.redirect(`${origin}${next}`)
+  for (const { name, value, options } of cookiesToForward) {
+    redirectResponse.cookies.set(name, value, options)
+  }
+
+  return redirectResponse
 }

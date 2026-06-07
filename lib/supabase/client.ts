@@ -1,14 +1,10 @@
+// lib/supabase/client.ts
 import { createBrowserClient } from '@supabase/ssr'
 
-let client: ReturnType<typeof createBrowserClient> | null = null
-
+// Không dùng singleton để tránh stale session cache sau OAuth redirect
 export function createClient() {
-  if (client) return client
-  
-  client = createBrowserClient(
+  return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
-  
-  return client
 }
