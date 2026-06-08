@@ -23,19 +23,68 @@ const WELCOME: Message = {
     'Xin chào! 🌿 Tôi là trợ lý AI của **Tiểu Cảnh NVM**.\n\nTôi có thể giúp bạn:\n• Tư vấn sản phẩm phù hợp\n• Hướng dẫn chăm sóc cây\n• Hỏi về đơn hàng, giao hàng\n• Giải đáp thắc mắc khác\n\nBạn cần hỗ trợ gì hôm nay?',
 }
 
-const SYSTEM_PROMPT = `Bạn là trợ lý AI của cửa hàng "Sân Vườn Tiểu Cảnh NVM" - chuyên bán cây cảnh, tiểu cảnh, đá phong thuỷ, chậu cây nghệ thuật tại TP. Hồ Chí Minh, Việt Nam.
+type ProductRow = {
+  name: string
+  price: number
+  sale_price: number | null
+  stock: number
+  featured: boolean
+  category: unknown
+  tags: unknown
+}
+
+async function buildSystemPrompt(): Promise<string> {
+  const supabase = createClient()
+
+  const [
+    { data: products },
+    { data: categories },
+  ] = await Promise.all([
+    supabase
+      .from('products')
+      .select('name, price, sale_price, stock, featured, category:categories(name), tags')
+      .eq('active', true)
+      .gt('stock', 0)
+      .order('featured', { ascending: false })
+      .limit(100),
+    supabase
+      .from('categories')
+      .select('name, description'),
+  ])
+
+  const formatProduct = (p: ProductRow) => {
+    const price = p.sale_price
+      ? `${p.price.toLocaleString('vi-VN')}đ → Giá sale: ${p.sale_price.toLocaleString('vi-VN')}đ`
+      : `${p.price.toLocaleString('vi-VN')}đ`
+    const cat = (p.category as unknown as { name: string } | null)?.name ?? ''
+    const tags = (p.tags as string[])?.join(', ') ?? ''
+    return `- ${p.name} | Danh mục: ${cat} | Giá: ${price} | Kho: ${p.stock}${tags ? ` | Tags: ${tags}` : ''}`
+  }
+
+  const featured = (products as ProductRow[] | null)?.filter(p => p.featured) ?? []
+  const normal   = (products as ProductRow[] | null)?.filter(p => !p.featured) ?? []
+
+  const productList = `SẢN PHẨM NỔI BẬT / BÁN CHẠY:
+${featured.length > 0 ? featured.map(formatProduct).join('\n') : 'Chưa có sản phẩm nổi bật'}
+
+TẤT CẢ SẢN PHẨM CÒN HÀNG:
+${normal.length > 0 ? normal.map(formatProduct).join('\n') : 'Không có sản phẩm khác'}`
+
+  const categoryList = categories?.map((c: { name: string; description: string | null }) =>
+    `- ${c.name}${c.description ? ': ' + c.description : ''}`
+  ).join('\n') ?? ''
+
+  return `Bạn là trợ lý AI của cửa hàng "Sân Vườn Tiểu Cảnh NVM" - chuyên bán cây cảnh, tiểu cảnh, đá phong thuỷ, chậu cây nghệ thuật tại TP. Hồ Chí Minh, Việt Nam.
 
 THÔNG TIN CỬA HÀNG:
 - Hotline: 0966.556.234 - 0982.424.345
 - Email: tranhdadep@gmail.com
 - Website: sanvuontieucanhnvm.vn
 
-SẢN PHẨM CHÍNH:
-1. Cây cảnh bonsai (Sanh, Linh sam, Tùng, Mai chiếu thủy...)
-2. Tiểu cảnh để bàn (terrarium, non bộ thu nhỏ)
-3. Đá phong thuỷ (đá thạch anh, đá cảnh tự nhiên)
-4. Chậu cây nghệ thuật (gốm, xi măng, gỗ lũa)
-5. Phụ kiện chăm sóc cây (đất, phân, dụng cụ)
+DANH MỤC SẢN PHẨM:
+${categoryList}
+
+${productList}
 
 CHÍNH SÁCH:
 - Giao hàng nội thành HCM: miễn phí đơn ≥500k, phí 30k dưới 500k
@@ -43,13 +92,21 @@ CHÍNH SÁCH:
 - Đổi trả: 7 ngày nếu cây hỏng do vận chuyển (kèm ảnh chứng minh)
 - Thanh toán: COD, chuyển khoản, ví điện tử
 
+NGUYÊN TẮC BẮT BUỘC - KHÔNG ĐƯỢC VI PHẠM:
+1. CHỈ được nhắc đến sản phẩm có TÊN CHÍNH XÁC trong danh sách "SẢN PHẨM NỔI BẬT" hoặc "TẤT CẢ SẢN PHẨM CÒN HÀNG" ở trên
+2. KHÔNG được tự tạo ra tên sản phẩm, giá, kích thước, mô tả không có trong danh sách
+3. Nếu khách hỏi sản phẩm không có trong danh sách → trả lời: "Hiện tại cửa hàng chưa có sản phẩm này, bạn vui lòng gọi hotline 0966.556.234 để được tư vấn thêm nhé!"
+4. Khi liệt kê sản phẩm → chỉ dùng tên và giá từ danh sách, không thêm bất kỳ thông tin nào khác ngoài danh sách
+
 CÁCH TRẢ LỜI:
 - Thân thiện, ngắn gọn, dùng emoji phù hợp 🌿
-- Gợi ý sản phẩm cụ thể phù hợp nhu cầu khách
+- Khi hỏi sản phẩm hot/bán chạy → liệt kê đúng nhóm SẢN PHẨM NỔI BẬT
+- Khi hỏi theo danh mục (VD: "tiểu cảnh để bàn") → lọc theo cột "Danh mục" trong danh sách và chỉ liệt kê sản phẩm thuộc danh mục đó
+- Khi hỏi tên/mã sản phẩm cụ thể → tìm chính xác trong danh sách
 - Hỏi về đơn hàng → hướng vào /profile/orders
 - Muốn mua → hướng vào /products
-- Không chắc thông tin → khuyên gọi hotline
 - Luôn trả lời bằng tiếng Việt`
+}
 
 function getSessionId(): string {
   if (typeof window === 'undefined') return ''
@@ -80,8 +137,9 @@ export default function ChatBot() {
   const [userId, setUserId]       = useState<string | null>(null)
   const [sessionId]               = useState(getSessionId)
 
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef       = useRef<HTMLInputElement>(null)
+  const systemPromptRef = useRef<string | null>(null)
+  const messagesEndRef  = useRef<HTMLDivElement>(null)
+  const inputRef        = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -113,6 +171,11 @@ export default function ChatBot() {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 300)
       setHasNewMsg(false)
+      // Reset cache và fetch lại mỗi lần mở để đảm bảo data mới nhất
+      systemPromptRef.current = null
+      buildSystemPrompt().then(prompt => {
+        systemPromptRef.current = prompt
+      })
     }
   }, [open])
 
@@ -138,12 +201,16 @@ export default function ChatBot() {
     await saveMessage(userMsg)
 
     try {
+      if (!systemPromptRef.current) {
+        systemPromptRef.current = await buildSystemPrompt()
+      }
+
       const res = await fetch('/api/chat', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: history.slice(1),
-          system:   SYSTEM_PROMPT,
+          system:   systemPromptRef.current,
         }),
       })
       const data  = await res.json()
@@ -164,7 +231,7 @@ export default function ChatBot() {
 
   return (
     <>
-      {/* Chat window — góc PHẢI, cố định bằng inline style */}
+      {/* Chat window */}
       <div
         style={{
           position: 'fixed',
@@ -241,19 +308,17 @@ export default function ChatBot() {
           </div>
 
           {/* Quick replies */}
-          {true && (
-            <div className="px-4 pb-2 flex gap-1.5 flex-wrap shrink-0">
-              {QUICK_REPLIES.map(q => (
-                <button
-                  key={q.value}
-                  onClick={() => sendMessage(q.value)}
-                  className="text-xs bg-moss-50 text-moss-700 border border-moss-200 px-2.5 py-1.5 rounded-full hover:bg-moss-100 transition-colors whitespace-nowrap"
-                >
-                  {q.label}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="px-4 pb-2 flex gap-1.5 flex-wrap shrink-0">
+            {QUICK_REPLIES.map(q => (
+              <button
+                key={q.value}
+                onClick={() => sendMessage(q.value)}
+                className="text-xs bg-moss-50 text-moss-700 border border-moss-200 px-2.5 py-1.5 rounded-full hover:bg-moss-100 transition-colors whitespace-nowrap"
+              >
+                {q.label}
+              </button>
+            ))}
+          </div>
 
           {/* Input */}
           <div className="px-4 py-3 border-t border-stone-100 flex gap-2 shrink-0">
@@ -278,7 +343,7 @@ export default function ChatBot() {
         </div>
       </div>
 
-      {/* Toggle button — góc PHẢI DƯỚI, cố định bằng inline style */}
+      {/* Toggle button */}
       <button
         onClick={() => setOpen(!open)}
         style={{

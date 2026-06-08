@@ -99,9 +99,11 @@ export default function DashboardClient() {
       supabase.from('orders')
         .select('*, profile:profiles(full_name, email)')
         .order('created_at', { ascending: false }).limit(7),
-      supabase.from('orders').select('total').eq('status', 'delivered'),
       supabase.from('orders')
-        .select('created_at, total, status')
+  .select('total')
+  .or('status.eq.delivered,payment_status.eq.paid'),
+      supabase.from('orders')
+        .select('created_at, total, status, payment_status')
         .order('created_at', { ascending: true })
         .gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString()),
       supabase.from('products')
@@ -120,12 +122,13 @@ export default function DashboardClient() {
 
     // Build 30-day chart data
     const dayMap: Record<string, { đơn: number; doanh_thu: number }> = {}
-    allOrders?.forEach((o: { created_at: string; total: number; status: string }) => {
-      const d = formatDate(o.created_at)
-      if (!dayMap[d]) dayMap[d] = { đơn: 0, doanh_thu: 0 }
-      dayMap[d].đơn++
-      if (o.status === 'delivered') dayMap[d].doanh_thu += o.total
-    })
+    allOrders?.forEach((o: { created_at: string; total: number; status: string; payment_status: string }) => {
+  const d = formatDate(o.created_at)
+  if (!dayMap[d]) dayMap[d] = { đơn: 0, doanh_thu: 0 }
+  dayMap[d].đơn++
+  if (o.status === 'delivered' || o.payment_status === 'paid') 
+    dayMap[d].doanh_thu += o.total
+})
     setOrdersByDay(Object.entries(dayMap).map(([date, v]) => ({ date, ...v })))
 
     // Build status breakdown
@@ -160,7 +163,7 @@ export default function DashboardClient() {
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
             <span style={{ color: '#475569' }}>{p.name}:</span>
             <strong style={{ color: '#0f172a' }}>
-              {p.name === 'Doanh thu' ? formatPrice(p.value * 1000) : p.value}
+              {p.name === 'Doanh thu' ? formatPrice(p.value) : p.value}
             </strong>
           </div>
         ))}

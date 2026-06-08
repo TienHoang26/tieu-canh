@@ -42,6 +42,35 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
 
   async function updateOrderStatus(orderId: string, newStatus: string) {
     setUpdatingId(orderId)
+
+    // Trừ kho khi chuyển sang "đã giao"
+    const previousStatus = orders.find((o) => o.id === orderId)?.status
+  if (newStatus === 'delivered' && previousStatus !== 'delivered') {
+      const { data: items } = await supabase
+        .from('order_items')
+        .select('product_id, quantity')
+        .eq('order_id', orderId)
+
+      if (items && items.length > 0) {
+        await Promise.all(
+          items.map(async (item: { product_id: string; quantity: number }) => {
+            const { data: product } = await supabase
+              .from('products')
+              .select('stock')
+              .eq('id', item.product_id)
+              .single()
+
+            if (product) {
+              await supabase
+                .from('products')
+                .update({ stock: Math.max(0, product.stock - item.quantity) })
+                .eq('id', item.product_id)
+            }
+          })
+        )
+      }
+    }
+
     const { error } = await supabase
       .from('orders')
       .update({ status: newStatus })
