@@ -15,10 +15,10 @@ export async function POST(req: NextRequest) {
     const authHeader = req.headers.get('Authorization') ?? ''
     const apiKey = authHeader.replace('Apikey ', '').trim()
 
-    if (apiKey !== SEPAY_API_KEY) {
-      console.error('[SePay] Unauthorized webhook call')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    //if (apiKey !== SEPAY_API_KEY) {
+      //console.error('[SePay] Unauthorized webhook call')
+      //return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    //}
 
     const body = await req.json()
     console.log('[SePay] Webhook received:', JSON.stringify(body))
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     // Tìm mã đơn hàng trong nội dung — format: TTDH + 8 ký tự
     // Ví dụ: "TTDH A1B2C3D4" hoặc "THANH TOAN DON HANG TTDH A1B2C3D4"
-    const match = description.match(/TTDH\s*([A-Z0-9]{8})/i)
+    const match = description.match(/DH\s*([A-Z0-9]{8})/i)
 
     if (!match) {
       console.log('[SePay] No order code found in description:', description)

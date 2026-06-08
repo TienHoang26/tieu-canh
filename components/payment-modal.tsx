@@ -91,7 +91,7 @@ function StaticQRImage({ src, alt, fallbackText }: { src: string; alt: string; f
 }
 
 function VietQRImage({ total, orderCode }: { total: number; orderCode: string }) {
-  const description = `TTDH ${orderCode}`
+  const description = `DH ${orderCode}`
   const url = `https://img.vietqr.io/image/${BANK_INFO.bin}-${BANK_INFO.account_number}-compact2.png` +
     `?amount=${total}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent(BANK_INFO.account_name)}`
   const [error, setError] = useState(false)
@@ -143,7 +143,7 @@ function CODPanel() {
 }
 
 function BankTransferPanel({ total, orderCode }: { total: number; orderCode: string }) {
-  const description = `TTDH ${orderCode}`
+  const description = `DH ${orderCode}`
   const vnd = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(total)
   return (
     <div className="space-y-4">
