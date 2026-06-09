@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 import type { Profile } from '@/types'
 
 export default function AdminUsersClient({ profiles: initial }: { profiles: Profile[] }) {
-  const [profiles, setProfiles] = useState(initial)
+  const [profiles, setProfiles] = useState(initial.filter(p => p.role === 'customer'))
   const [search, setSearch] = useState('')
   const [updating, setUpdating] = useState<string | null>(null)
 
@@ -17,16 +17,20 @@ export default function AdminUsersClient({ profiles: initial }: { profiles: Prof
     (p.full_name ?? '').toLowerCase().includes(search.toLowerCase())
   )
 
-  const toggleRole = async (p: Profile) => {
-    const newRole = p.role === 'admin' ? 'customer' : 'admin'
-    if (newRole === 'admin' && !confirm(`Cấp quyền admin cho ${p.email}?`)) return
+  const toggleLock = async (p: Profile) => {
+    if (p.role === 'admin') return
+    const newLocked = !p.is_locked
+    if (newLocked && !confirm(`Khóa tài khoản ${p.email}?`)) return
     setUpdating(p.id)
     const supabase = createClient()
-    const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', p.id)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_locked: newLocked })
+      .eq('id', p.id)
     if (error) { toast.error(error.message) }
     else {
-      setProfiles(ps => ps.map(x => x.id === p.id ? { ...x, role: newRole } : x))
-      toast.success(`Đã ${newRole === 'admin' ? 'cấp quyền admin' : 'thu hồi quyền admin'}!`)
+      setProfiles(ps => ps.map(x => x.id === p.id ? { ...x, is_locked: newLocked } : x))
+      toast.success(newLocked ? 'Đã khóa tài khoản!' : 'Đã mở khóa tài khoản!')
     }
     setUpdating(null)
   }
@@ -34,21 +38,24 @@ export default function AdminUsersClient({ profiles: initial }: { profiles: Prof
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div>
-        <h1 className="font-display text-2xl lg:text-3xl font-bold text-stone-800">Người dùng</h1>
-        <p className="text-stone-500 text-sm mt-0.5">{profiles.length} tài khoản đăng ký</p>
+        <h1 className="font-display text-2xl lg:text-3xl font-bold text-stone-800">Quản lý người dùng</h1>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 max-w-sm">
-        <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-stone-800">{profiles.filter(p => p.role === 'customer').length}</p>
-          <p className="text-sm text-stone-500 mt-0.5">Khách hàng</p>
-        </div>
-        <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-moss-700">{profiles.filter(p => p.role === 'admin').length}</p>
-          <p className="text-sm text-stone-500 mt-0.5">Admin</p>
-        </div>
-      </div>
+      <div className="grid grid-cols-3 gap-4">
+  <div className="card p-4 text-center">
+    <p className="text-2xl font-bold text-stone-800">{profiles.filter(p => p.role === 'customer').length}</p>
+    <p className="text-sm text-stone-500 mt-0.5">Tổng khách hàng</p>
+  </div>
+  <div className="card p-4 text-center">
+    <p className="text-2xl font-bold text-green-700">{profiles.filter(p => p.role === 'customer' && !p.is_locked).length}</p>
+    <p className="text-sm text-stone-500 mt-0.5">Đang hoạt động</p>
+  </div>
+  <div className="card p-4 text-center">
+    <p className="text-2xl font-bold text-red-600">{profiles.filter(p => p.role === 'customer' && p.is_locked).length}</p>
+    <p className="text-sm text-stone-500 mt-0.5">Đã khóa</p>
+  </div>
+</div>
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -58,21 +65,23 @@ export default function AdminUsersClient({ profiles: initial }: { profiles: Prof
       </div>
 
       {/* Table */}
-      <div className="card overflow-hidden">
+      <div className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-stone-50 border-b border-stone-100">
-                <th className="text-left px-5 py-3 text-stone-500 font-medium">Người dùng</th>
-                <th className="text-left px-5 py-3 text-stone-500 font-medium hidden sm:table-cell">Ngày đăng ký</th>
-                <th className="text-left px-5 py-3 text-stone-500 font-medium">Vai trò</th>
-                <th className="text-right px-5 py-3 text-stone-500 font-medium">Quyền</th>
+               <tr className="bg-moss-600/10 border-b border-stone-200">
+                <th className="text-center px-4 py-3 text-moss-800 font-bold uppercase text-xs border-r border-moss-200 w-12">STT</th>
+                <th className="text-left px-5 py-3 text-moss-800 font-bold uppercase text-xs border-r border-moss-200">Người dùng</th>
+                <th className="text-center px-5 py-3 text-moss-800 font-bold uppercase text-xs border-r border-moss-200 hidden sm:table-cell">Ngày đăng ký</th>
+                <th className="text-center px-5 py-3 text-moss-800 font-bold uppercase text-xs border-r border-moss-200">Vai trò</th>
+                <th className="text-center px-5 py-3 text-moss-800 font-bold uppercase text-xs">Trạng thái</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(p => (
-                <tr key={p.id} className="border-b border-stone-50 hover:bg-stone-50 transition-colors">
-                  <td className="px-5 py-3">
+              {filtered.map((p, idx) => (
+                <tr key={p.id} className="border-b border-stone-200 even:bg-stone-50/60 hover:bg-moss-50/40 transition-colors">
+                  <td className="px-4 py-3 text-center text-stone-400 font-medium border-r border-stone-200">{idx + 1}</td>
+                  <td className="px-5 py-3 border-r border-stone-200">
                     <div className="flex items-center gap-3">
                       {p.avatar_url ? (
                         <img src={p.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
@@ -87,8 +96,8 @@ export default function AdminUsersClient({ profiles: initial }: { profiles: Prof
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-stone-500 text-xs hidden sm:table-cell">{formatDate(p.created_at)}</td>
-                  <td className="px-5 py-3">
+                  <td className="px-5 py-3 text-center text-stone-500 text-xs hidden sm:table-cell border-r border-stone-200">{formatDate(p.created_at)}</td>
+                  <td className="px-5 py-3 text-center border-r border-stone-200">
                     <span className={cn(
                       'badge',
                       p.role === 'admin' ? 'bg-moss-100 text-moss-700' : 'bg-stone-100 text-stone-600'
@@ -96,26 +105,28 @@ export default function AdminUsersClient({ profiles: initial }: { profiles: Prof
                       {p.role === 'admin' ? <><Shield className="w-3 h-3" /> Admin</> : 'Khách hàng'}
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-right">
-                    <button
-                      onClick={() => toggleRole(p)}
-                      disabled={updating === p.id}
-                      className={cn(
-                        'text-xs font-medium px-3 py-1.5 rounded-lg transition-colors',
-                        p.role === 'admin'
-                          ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                          : 'bg-moss-50 text-moss-700 hover:bg-moss-100'
-                      )}
-                    >
-                      {updating === p.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : p.role === 'admin' ? 'Thu hồi admin' : 'Cấp admin'}
-                    </button>
+                  <td className="px-5 py-3 text-center">
+                    {p.role === 'admin' ? null : (
+                      <button
+                        onClick={() => toggleLock(p)}
+                        disabled={updating === p.id}
+                        className={cn(
+                          'text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors',
+                          p.is_locked
+                            ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
+                            : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                        )}
+                      >
+                        {updating === p.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : p.is_locked ? 'Mở khóa' : 'Khóa tài khoản'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={4} className="text-center py-12 text-stone-400">Không tìm thấy người dùng</td></tr>
+                <tr><td colSpan={5} className="text-center py-12 text-stone-400">Không tìm thấy người dùng</td></tr>
               )}
             </tbody>
           </table>

@@ -9,6 +9,7 @@ export interface Profile {
   phone: string | null
   address: string | null
   created_at: string
+  is_locked: boolean
 }
 
 export interface Category {

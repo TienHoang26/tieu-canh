@@ -163,7 +163,7 @@ export default function CartPage() {
                 </div>
                 {shipping > 0 && (
                   <p className="text-xs text-moss-600 bg-moss-50 px-3 py-2 rounded-lg">
-                    Mua thêm {formatPrice(500000 - total())} để được miễn phí ship!
+                    Mua thêm {formatPrice(500000 - selectedTotal())} để được miễn phí ship!
                   </p>
                 )}
                 <div className="border-t border-stone-100 pt-3 flex justify-between font-bold text-stone-800 text-base">

@@ -58,7 +58,8 @@ export default function CheckoutPage() {
     e.preventDefault()
     if (checkoutItems.length === 0) { toast.error('Giỏ hàng trống!'); return }
     if (!form.name.trim())    { toast.error('Vui lòng nhập họ tên!'); return }
-    if (!form.phone.trim())   { toast.error('Vui lòng nhập số điện thoại!'); return }
+    if (!form.phone.trim())         { toast.error('Vui lòng nhập số điện thoại!'); return }
+    if (form.phone.length !== 10)   { toast.error('Số điện thoại phải đủ 10 số!'); return }
     if (!form.address.trim()) { toast.error('Vui lòng nhập địa chỉ giao hàng!'); return }
 
     setLoading(true)
@@ -176,8 +177,17 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-stone-600 mb-1.5">Số điện thoại <span className="text-red-400">*</span>:</label>
-                    <input className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100 bg-white placeholder:text-stone-300 transition"
-                      required type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="Nhập số điện thoại liên hệ" />
+                    <input className={`w-full px-4 py-2.5 border rounded-xl text-sm outline-none focus:ring-2 bg-white placeholder:text-stone-300 transition ${
+                        form.phone && form.phone.length !== 10
+                          ? 'border-red-400 focus:border-red-400 focus:ring-red-100'
+                          : 'border-stone-200 focus:border-moss-400 focus:ring-moss-100'
+                      }`}
+                      required type="tel" maxLength={10} value={form.phone}
+                      onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, '') }))}
+                      placeholder="Nhập số điện thoại liên hệ" />
+                    {form.phone && form.phone.length !== 10 && (
+                      <p className="text-xs text-red-500 mt-1">Số điện thoại phải đủ 10 số</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-stone-600 mb-1.5">Địa chỉ giao hàng <span className="text-red-400">*</span>:</label>

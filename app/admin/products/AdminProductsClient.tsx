@@ -225,18 +225,18 @@ export default function AdminProductsClient({
       </div>
 
       {/* ── Table ── */}
-      <div className="bg-white rounded-xl border border-stone-100 overflow-hidden shadow-sm">
+      <div className="overflow-hidden border border-stone-200">
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-stone-50">
-                <th className="text-center px-3 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100 w-12">STT</th>
-                <th className="text-center px-5 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Sản phẩm</th>
-                <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100 hidden md:table-cell">Danh mục</th>
-                <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Giá</th>
-                <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100 hidden sm:table-cell">Kho</th>
-                <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-r border-stone-100">Hiển thị</th>
-                <th className="text-center px-4 py-3 text-stone-500 font-semibold text-xs uppercase tracking-wide border-b border-stone-100">Thao tác</th>
+              <tr className="bg-moss-600/10 border-b border-stone-200">
+                <th className="text-center px-3 py-3 text-moss-800 font-bold text-xs uppercase tracking-wide border-r border-stone-200 w-12">STT</th>
+                <th className="text-center px-5 py-3 text-moss-800 font-bold text-xs uppercase tracking-wide border-r border-stone-200">Sản phẩm</th>
+                <th className="text-center px-4 py-3 text-moss-800 font-bold text-xs uppercase tracking-wide border-r border-stone-200 hidden md:table-cell">Danh mục</th>
+                <th className="text-center px-4 py-3 text-moss-800 font-bold text-xs uppercase tracking-wide border-r border-stone-200">Giá</th>
+                <th className="text-center px-4 py-3 text-moss-800 font-bold text-xs uppercase tracking-wide border-r border-stone-200 hidden sm:table-cell">Kho</th>
+                <th className="text-center px-4 py-3 text-moss-800 font-bold text-xs uppercase tracking-wide border-r border-stone-200">Hiển thị</th>
+                <th className="text-center px-4 py-3 text-moss-800 font-bold text-xs uppercase tracking-wide">Thao tác</th>
               </tr>
             </thead>
             <tbody>

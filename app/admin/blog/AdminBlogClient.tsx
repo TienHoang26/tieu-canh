@@ -36,6 +36,7 @@ export default function AdminBlogClient({ posts: initial }: { posts: Post[] }) {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [preview, setPreview] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   const openCreate = () => {
     setEditing(null)
@@ -43,6 +44,23 @@ export default function AdminBlogClient({ posts: initial }: { posts: Post[] }) {
     setPreview(false)
     setShowModal(true)
   }
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+  setUploading(true)
+  const supabase = createClient()
+  const ext = file.name.split('.').pop()
+  const path = `blog/${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from('images').upload(path, file)
+  if (error) {
+    toast.error('Upload thất bại: ' + error.message)
+  } else {
+    const { data } = supabase.storage.from('images').getPublicUrl(path)
+    setForm(f => ({ ...f, cover_image: data.publicUrl }))
+    toast.success('Đã upload ảnh!')
+  }
+  setUploading(false)
+}
 
   const openEdit = (p: Post) => {
     setEditing(p)
@@ -96,84 +114,99 @@ export default function AdminBlogClient({ posts: initial }: { posts: Post[] }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl lg:text-3xl font-bold text-stone-800">Blog</h1>
-          <p className="text-stone-500 text-sm mt-0.5">{posts.length} bài viết</p>
         </div>
         <button onClick={openCreate} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" /> Viết bài mới
         </button>
       </div>
-
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-stone-50 border-b border-stone-100">
-                <th className="text-left px-5 py-3 text-stone-500 font-medium">Tiêu đề</th>
-                <th className="text-left px-5 py-3 text-stone-500 font-medium hidden md:table-cell">Tags</th>
-                <th className="text-left px-5 py-3 text-stone-500 font-medium hidden sm:table-cell">Lượt xem</th>
-                <th className="text-left px-5 py-3 text-stone-500 font-medium">Trạng thái</th>
-                <th className="text-right px-5 py-3 text-stone-500 font-medium">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {posts.map(p => (
-                <tr key={p.id} className="border-b border-stone-50 hover:bg-stone-50 transition-colors">
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      {p.cover_image && (
-                        <img src={p.cover_image} alt="" className="w-10 h-10 object-cover rounded-lg shrink-0" />
-                      )}
-                      <div>
-                        <p className="font-medium text-stone-800 line-clamp-1">{p.title}</p>
-                        <p className="text-xs text-stone-400">{formatDate(p.created_at)}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 hidden md:table-cell">
-                    <div className="flex flex-wrap gap-1">
-                      {p.tags?.slice(0, 2).map(t => (
-                        <span key={t} className="text-xs bg-moss-50 text-moss-600 px-2 py-0.5 rounded-full">{t}</span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-stone-500 hidden sm:table-cell">{p.views ?? 0}</td>
-                  <td className="px-5 py-3">
-                    <button onClick={() => togglePublish(p)}
-                      className={cn('badge cursor-pointer transition-colors', p.published ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-stone-100 text-stone-500 hover:bg-stone-200')}>
-                      {p.published ? <><Eye className="w-3 h-3" /> Đã đăng</> : <><EyeOff className="w-3 h-3" /> Nháp</>}
-                    </button>
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openEdit(p)}
-                        className="p-2 text-stone-400 hover:text-moss-700 hover:bg-moss-50 rounded-lg transition-colors">
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id}
-                        className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                        {deleting === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {posts.length === 0 && (
-                <tr><td colSpan={5} className="text-center py-12 text-stone-400">
-                  <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-40" />Chưa có bài viết nào
-                </td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+<div className="overflow-hidden border border-stone-200">
+  <div className="overflow-x-auto">
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="bg-moss-600/10 border-b border-stone-200">
+          <th className="text-center px-4 py-3 text-moss-800 font-bold uppercase text-xs border-r border-stone-200 w-12">STT</th>
+          <th className="text-left px-4 py-3 text-moss-800 font-bold uppercase text-xs border-r border-stone-200">Bài viết</th>
+          <th className="text-center px-4 py-3 text-moss-800 font-bold uppercase text-xs border-r border-stone-200 hidden md:table-cell">Tags</th>
+          <th className="text-center px-4 py-3 text-moss-800 font-bold uppercase text-xs border-r border-stone-200 hidden sm:table-cell">Lượt xem</th>
+          <th className="text-center px-4 py-3 text-moss-800 font-bold uppercase text-xs border-r border-stone-200">Hiển thị</th>
+          <th className="text-center px-4 py-3 text-moss-800 font-bold uppercase text-xs">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        {posts.map((p, idx) => (
+          <tr key={p.id} className="border-b border-stone-200 even:bg-stone-50/60 hover:bg-moss-50/40 transition-colors">
+            <td className="px-4 py-3 text-center text-stone-400 font-medium border-r border-stone-200">{idx + 1}</td>
+            <td className="px-4 py-3 border-r border-stone-200">
+              <div className="flex items-center gap-3">
+                {p.cover_image
+                  ? <img src={p.cover_image} alt="" className="w-10 h-10 object-cover rounded-lg shrink-0 border border-stone-100" />
+                  : <div className="w-10 h-10 rounded-lg bg-stone-100 shrink-0 flex items-center justify-center"><BookOpen className="w-4 h-4 text-stone-300" /></div>
+                }
+                <div>
+                  <p className="font-medium text-stone-800 line-clamp-1">{p.title}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">{formatDate(p.created_at)}</p>
+                </div>
+              </div>
+            </td>
+            <td className="px-4 py-3 text-center hidden md:table-cell border-r border-stone-200">
+              <div className="flex flex-wrap gap-1 justify-center">
+                {p.tags?.slice(0, 2).map(t => (
+                  <span key={t} className="text-xs bg-moss-50 text-moss-600 px-2 py-0.5 rounded-full">{t}</span>
+                ))}
+                {!p.tags?.length && <span className="text-stone-300 text-xs">—</span>}
+              </div>
+            </td>
+            <td className="px-4 py-3 text-center text-stone-600 font-medium hidden sm:table-cell border-r border-stone-200">
+              {p.views ?? 0}
+            </td>
+            <td className="px-4 py-3 text-center border-r border-stone-200">
+              <button onClick={() => togglePublish(p)} title={p.published ? 'Ẩn bài' : 'Đăng bài'}
+                className={cn(
+                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none',
+                  p.published ? 'bg-moss-500' : 'bg-stone-200'
+                )}>
+                <span className={cn(
+                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  p.published ? 'translate-x-6' : 'translate-x-1'
+                )} />
+              </button>
+            </td>
+            <td className="px-4 py-3">
+              <div className="flex items-center justify-center gap-2">
+                <a href={`/blog/${p.slug}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 text-xs font-medium transition-colors">
+                  <Eye className="w-3.5 h-3.5" /> Xem
+                </a>
+                <button onClick={() => openEdit(p)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-moss-200 text-moss-600 hover:bg-moss-50 text-xs font-medium transition-colors">
+                  <Pencil className="w-3.5 h-3.5" /> Sửa
+                </button>
+                <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 text-xs font-medium transition-colors disabled:opacity-50">
+                  {deleting === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  Xoá
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))}
+        {posts.length === 0 && (
+          <tr><td colSpan={6} className="text-center py-12 text-stone-400">
+            <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-40" />Chưa có bài viết nào
+          </td></tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white rounded-2xl w-full max-w-3xl shadow-2xl mb-8">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 sticky top-0 bg-white rounded-t-2xl z-10">
+          <div className="relative bg-white rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
+        {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 rounded-t-2xl shrink-0">
               <h2 className="font-bold text-stone-800 text-lg">{editing ? 'Chỉnh sửa bài viết' : 'Bài viết mới'}</h2>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPreview(!preview)}
@@ -187,7 +220,7 @@ export default function AdminBlogClient({ posts: initial }: { posts: Post[] }) {
             </div>
 
             {preview ? (
-              <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <div className="p-6 overflow-y-auto">
                 {(form as { cover_image?: string }).cover_image && (
                   <img src={(form as { cover_image?: string }).cover_image} alt="" className="w-full h-48 object-cover rounded-xl mb-4" />
                 )}
@@ -198,7 +231,7 @@ export default function AdminBlogClient({ posts: initial }: { posts: Post[] }) {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSave} className="p-6 space-y-4">
+              <form onSubmit={handleSave} className="p-6 space-y-4 overflow-y-auto">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-stone-700 mb-1.5">Tiêu đề *</label>
@@ -217,11 +250,26 @@ export default function AdminBlogClient({ posts: initial }: { posts: Post[] }) {
                       placeholder="zen, hướng dẫn, bonsai" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-stone-700 mb-1.5">URL ảnh bìa</label>
-                    <input className="input" value={(form as { cover_image?: string }).cover_image ?? ''}
-                      onChange={e => setForm(f => ({ ...f, cover_image: e.target.value }))}
-                      placeholder="https://images.unsplash.com/..." />
-                  </div>
+  <label className="block text-sm font-medium text-stone-700 mb-1.5">Ảnh bìa</label>
+  <div className="flex gap-2">
+    <input className="input flex-1" value={(form as { cover_image?: string }).cover_image ?? ''}
+      onChange={e => setForm(f => ({ ...f, cover_image: e.target.value }))}
+      placeholder="https://... hoặc upload từ máy" />
+    <label className={cn(
+      'flex items-center gap-2 px-4 py-2 rounded-xl border border-stone-200 text-sm font-medium cursor-pointer transition-colors shrink-0',
+      uploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-stone-50 text-stone-600'
+    )}>
+      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+      {uploading ? 'Đang upload...' : 'Chọn ảnh'}
+      <input type="file" accept="image/*" className="hidden" disabled={uploading}
+        onChange={handleImageUpload} />
+    </label>
+  </div>
+  {(form as { cover_image?: string }).cover_image && (
+    <img src={(form as { cover_image?: string }).cover_image} alt=""
+      className="mt-2 h-32 w-full object-cover rounded-xl border border-stone-100" />
+  )}
+</div>
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-stone-700 mb-1.5">Tóm tắt</label>
                     <textarea className="input resize-none" rows={2} value={(form as { excerpt?: string }).excerpt ?? ''}
@@ -233,7 +281,7 @@ export default function AdminBlogClient({ posts: initial }: { posts: Post[] }) {
                     <textarea className="input resize-none font-mono text-sm" required rows={12}
                       value={(form as { content: string }).content}
                       onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-                      placeholder="## Tiêu đề H2&#10;### Tiêu đề H3&#10;- Dòng list&#10;&#10;Đoạn văn bình thường..." />
+                      placeholder={`## Tiêu đề H2\n### Tiêu đề H3\n- Dòng list\n\nĐoạn văn bình thường...`} />
                     <p className="text-xs text-stone-400 mt-1">Hỗ trợ: ## H2, ### H3, - list item, **bold**</p>
                   </div>
                   <div className="flex items-center gap-2">
