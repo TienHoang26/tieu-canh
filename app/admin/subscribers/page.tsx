@@ -14,7 +14,6 @@ export default async function AdminSubscribersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl lg:text-3xl font-bold text-stone-800">Newsletter</h1>
-          <p className="text-stone-500 text-sm mt-0.5">{count ?? 0} người đăng ký nhận tin</p>
         </div>
         <div className="flex items-center gap-2 bg-moss-50 text-moss-700 px-4 py-2 rounded-xl font-semibold">
           <Users className="w-4 h-4" /> {count ?? 0} subscribers

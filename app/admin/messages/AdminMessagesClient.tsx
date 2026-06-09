@@ -54,9 +54,6 @@ export default function AdminMessagesClient({ messages: initial }: { messages: M
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl lg:text-3xl font-bold text-stone-800">Tin nhắn liên hệ</h1>
-          <p className="text-stone-500 text-sm mt-0.5">
-            {messages.length} tin nhắn{unreadCount > 0 && <span className="ml-2 badge bg-red-100 text-red-600">{unreadCount} chưa đọc</span>}
-          </p>
         </div>
       </div>
 
