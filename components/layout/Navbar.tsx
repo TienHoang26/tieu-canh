@@ -22,6 +22,8 @@ const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+let profileCache: { userId: string; profile: Profile } | null = null
+
 export default function Navbar() {
   const pathname = usePathname()
 
@@ -42,11 +44,13 @@ export default function Navbar() {
     setMounted(true)
 
     const fetchProfile = async (userId: string) => {
+      if (profileCache?.userId === userId) return profileCache.profile
       const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single()
+      if (data) profileCache = { userId, profile: data }
       return data
     }
 
@@ -99,6 +103,7 @@ export default function Navbar() {
       await supabase.auth.signOut({ scope: 'local' })
     } catch (_) {}
     localStorage.removeItem('userId')
+    profileCache = null
     clearCartCache()
     setProfile(null)
     setUserMenuOpen(false)
