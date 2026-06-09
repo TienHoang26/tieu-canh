@@ -55,6 +55,7 @@ type Order = {
   created_at: string
   status: string
   payment_status: string
+  payment_method?: string
   total: number
   note?: string
   shipping_name?: string
@@ -73,12 +74,27 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [period, setPeriod] = useState<Period>('month')
+  const [search, setSearch] = useState('')
+  const [filterPayment, setFilterPayment] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
   const supabase = createClient()
 
+  const filteredOrders = orders.filter(o => {
+    const q = search.toLowerCase()
+    const matchSearch = !q
+      || o.id.toLowerCase().includes(q)
+      || (o.profile?.full_name ?? '').toLowerCase().includes(q)
+      || (o.profile?.email ?? '').toLowerCase().includes(q)
+      || (o.shipping_name ?? '').toLowerCase().includes(q)
+      || (o.shipping_phone ?? '').includes(q)
+    const matchPayment = !filterPayment || o.payment_status === filterPayment
+    const matchStatus  = !filterStatus  || o.status === filterStatus
+    return matchSearch && matchPayment && matchStatus
+  })
   // ── Period filter ──────────────────────────────────────────────────────
   const { from, to, label: periodLabel } = getDateRange(period)
 
-  const filteredByPeriod = orders.filter(o => {
+  const filteredByPeriod = filteredOrders.filter(o => {
     const d = new Date(o.created_at)
     return d >= from && d <= to
   })
@@ -138,11 +154,35 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
 
   async function updatePaymentStatus(orderId: string, newPaymentStatus: string) {
     setUpdatingId(orderId)
+    const previousStatus = orders.find((o) => o.id === orderId)?.payment_status
     const { error } = await supabase.from('orders').update({ payment_status: newPaymentStatus }).eq('id', orderId)
     if (!error) {
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, payment_status: newPaymentStatus } : o)))
       if (selectedOrder?.id === orderId) {
         setSelectedOrder((prev) => prev ? { ...prev, payment_status: newPaymentStatus } : prev)
+      }
+
+      // Gửi thông báo khi xác nhận đã thanh toán (chỉ khi chuyển từ trạng thái khác sang paid)
+      if (newPaymentStatus === 'paid' && previousStatus !== 'paid') {
+        const order = orders.find((o) => o.id === orderId)
+        if (order) {
+          const { data: orderData } = await supabase
+            .from('orders')
+            .select('user_id')
+            .eq('id', orderId)
+            .single()
+
+          if (orderData?.user_id && order.payment_method !== 'cod') {
+            await supabase.from('notifications').insert({
+              user_id: orderData.user_id,
+              type: 'general',
+              title: '✅ Thanh toán đã được xác nhận',
+              message: `Đơn hàng #${orderId.slice(0, 8).toUpperCase()} của bạn đã được xác nhận thanh toán thành công. Chúng tôi sẽ sớm xử lý đơn hàng cho bạn!`,
+              order_id: orderId,
+              read: false,
+            })
+          }
+        }
       }
     }
     setUpdatingId(null)
@@ -264,6 +304,55 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
         ))}
       </div>
 
+      {/* Search & filter bar */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-48">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Tìm theo tên, email, SĐT, mã đơn..."
+            className="w-full pl-9 pr-4 py-2 text-sm border border-stone-200 rounded-xl outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100 bg-white"
+          />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <select
+          value={filterPayment}
+          onChange={e => setFilterPayment(e.target.value)}
+          className="px-3 py-2 text-sm border border-stone-200 rounded-xl outline-none focus:border-moss-400 bg-white text-stone-600"
+        >
+          <option value="">Tất cả thanh toán</option>
+          {Object.entries(PAYMENT_STATUS_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="px-3 py-2 text-sm border border-stone-200 rounded-xl outline-none focus:border-moss-400 bg-white text-stone-600"
+        >
+          <option value="">Tất cả trạng thái</option>
+          {Object.entries(ORDER_STATUS_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
+        {(search || filterPayment || filterStatus) && (
+          <button onClick={() => { setSearch(''); setFilterPayment(''); setFilterStatus('') }}
+            className="px-3 py-2 text-sm text-red-500 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-xl transition-colors">
+            Xóa bộ lọc
+          </button>
+        )}
+        <p className="text-xs text-stone-400 ml-auto">
+          {filteredOrders.length}/{orders.length} đơn hàng
+        </p>
+      </div>
       {/* Table — hiển thị TẤT CẢ đơn hàng, không lọc theo period */}
       <div className="overflow-hidden border border-stone-200">
         <div className="overflow-x-auto">
@@ -281,7 +370,7 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
               </tr>
             </thead>
             <tbody>
-              {orders.map((order, idx) => (
+              {filteredOrders.map((order, idx) => (
                 <tr key={order.id} className="border-b border-stone-200 even:bg-stone-50/60 hover:bg-moss-50/40 transition-colors">
                   <td className="px-4 py-3 text-center text-stone-400 font-medium border-r border-stone-200">{idx + 1}</td>
                   <td className="px-4 py-3 font-mono text-xs text-stone-500 border-r border-stone-200">#{order.id.slice(0, 8).toUpperCase()}</td>
