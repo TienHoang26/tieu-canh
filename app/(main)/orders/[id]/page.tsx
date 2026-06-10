@@ -256,7 +256,7 @@ export default function OrderDetailPage() {
       <ArrowLeft className="w-4 h-4" /> Về trang chủ
     </button>
     <button onClick={() => router.push('/products')}
-      className="flex-1 py-3 rounded-2xl bg-[#5a6e3a] hover:bg-[#4a5c2e] text-white font-semibold text-sm transition">
+      className="flex-1 py-3 rounded-2xl bg-moss-400 hover:bg-moss-500 text-white font-semibold text-sm transition">
       Tiếp tục mua sắm
     </button>
   </div>
