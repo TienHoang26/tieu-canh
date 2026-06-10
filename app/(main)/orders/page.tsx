@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { ShoppingBag, ArrowRight, Eye, ClipboardList, Package, Hourglass, Truck, CheckCircle, XCircle } from 'lucide-react'
+import CancelOrderButton from '@/components/cancel-order-button'
 
 // ---- Status config (khớp với DB) ----
 const TABS = [
@@ -154,18 +155,24 @@ export default async function OrdersPage({
 
                   {/* Footer */}
                   <div className="flex items-center justify-between border-t border-stone-100 pt-4">
-                    <div>
-                      <span className="text-sm text-stone-500">Tổng tiền: </span>
-                      <span className="font-bold text-red-500 text-lg">{formatPrice(order.total)}</span>
-                    </div>
-                    <Link
-                      href={`/orders/${order.id}`}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-moss-600 hover:bg-moss-700 text-white text-sm font-medium transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Xem chi tiết
-                    </Link>
-                  </div>
+  <div>
+    <span className="text-sm text-stone-500">Tổng tiền: </span>
+    <span className="font-bold text-red-500 text-lg">{formatPrice(order.total)}</span>
+  </div>
+  <div className="flex items-center gap-2">
+    {/* ✅ Thêm nút hủy */}
+    {order.status === 'pending' && (
+      <CancelOrderButton orderId={order.id} />
+    )}
+    <Link
+      href={`/orders/${order.id}`}
+      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-moss-600 hover:bg-moss-700 text-white text-sm font-medium transition-colors"
+    >
+      <Eye className="w-4 h-4" />
+      Xem chi tiết
+    </Link>
+  </div>
+</div>
                 </div>
               </div>
             ))}

@@ -24,6 +24,7 @@ export default function CheckoutPage() {
   const [mounted, setMounted]             = useState(false)
   const [loading, setLoading]             = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('cod')
+  const [successModal, setSuccessModal] = useState(false)
   const [form, setForm]                   = useState({ name: '', phone: '', address: '', note: '' })
   const [frozenItems, setFrozenItems]     = useState<typeof items>([])
   const [orderPlaced, setOrderPlaced]     = useState(false)
@@ -109,10 +110,14 @@ export default function CheckoutPage() {
     const savedMethod = paymentMethod
 
     if (savedMethod === 'cod') {
-      toast.success('Đặt hàng thành công! 🎉')
-      router.push(`/orders/${order.id}?success=1`)
-      return
-    }
+  toast.success('Đặt hàng thành công! 🎉')
+  setSuccessModal(true)
+  setTimeout(() => {
+    setSuccessModal(false)
+    router.push(`/orders/${order.id}?success=1`)
+  }, 15000)
+  return
+}
 
     // Không toast ở đây — chờ user xác nhận trong modal
     setPaymentModal({ isOpen: true, orderId: order.id, orderCode, total, method: savedMethod })
@@ -133,7 +138,12 @@ export default function CheckoutPage() {
     }
 
     setPaymentModal(m => ({ ...m, isOpen: false }))
+    setSuccessModal(true)
+  setTimeout(() => {
+    setSuccessModal(false)
     router.push(`/orders/${orderId}?success=1`)
+  }, 15000)
+
   }
 
   if (mounted && !orderPlaced && checkoutItems.length === 0) {
@@ -311,6 +321,43 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      {successModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+    <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center animate-[fadeInUp_0.3s_ease]">
+      {/* Icon check */}
+      <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-5">
+        <svg className="w-10 h-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+
+      <h3 className="text-xl font-extrabold text-stone-800 mb-2">Đặt hàng thành công! 🎉</h3>
+      <p className="text-sm text-stone-500 leading-relaxed mb-6">
+        Đơn hàng của bạn đã được ghi nhận.<br />
+        <span className="font-semibold text-moss-700 text-base">
+          Chúng tôi sẽ xác nhận đơn trong ít phút
+        </span>{' '}
+        và liên hệ với bạn sớm nhất có thể.
+      </p>
+
+      {/* Progress bar đếm ngược */}
+      <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden mb-5">
+        <div
+          className="h-full bg-green-400 rounded-full"
+          style={{ animation: 'shrink 15s linear forwards' }}
+        />
+      </div>
+
+      <button
+        onClick={() => { setSuccessModal(false); router.push(`/orders/${paymentModal.orderId || ''}?success=1`) }}
+        className="w-full py-3 rounded-2xl bg-[#5a6e3a] hover:bg-[#4a5c2e] text-white font-bold text-sm tracking-widest uppercase transition"
+      >
+        Xem đơn hàng
+      </button>
+    </div>
+  </div>
+)}
 
       <PaymentModal
         isOpen={paymentModal.isOpen}

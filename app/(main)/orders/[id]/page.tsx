@@ -9,6 +9,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
 import type { Order, OrderItem, Product } from '@/types'
+import CancelOrderButton from '@/components/cancel-order-button'
 
 type OrderWithItems = Order & {
   items: (OrderItem & { product: Product })[]
@@ -244,16 +245,22 @@ export default function OrderDetailPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3">
-          <button onClick={() => router.push('/')}
-            className="flex-1 py-3 rounded-2xl border border-stone-200 text-stone-700 font-semibold text-sm hover:bg-stone-50 transition flex items-center justify-center gap-2">
-            <ArrowLeft className="w-4 h-4" /> Về trang chủ
-          </button>
-          <button onClick={() => router.push('/products')}
-            className="flex-1 py-3 rounded-2xl bg-[#5a6e3a] hover:bg-[#4a5c2e] text-white font-semibold text-sm transition">
-            Tiếp tục mua sắm
-          </button>
-        </div>
+<div className="flex flex-col gap-3">
+  {/* ✅ Thêm nút hủy */}
+  {order.status === 'pending' && (
+    <CancelOrderButton orderId={order.id} />
+  )}
+  <div className="flex gap-3">
+    <button onClick={() => router.push('/')}
+      className="flex-1 py-3 rounded-2xl border border-stone-200 text-stone-700 font-semibold text-sm hover:bg-stone-50 transition flex items-center justify-center gap-2">
+      <ArrowLeft className="w-4 h-4" /> Về trang chủ
+    </button>
+    <button onClick={() => router.push('/products')}
+      className="flex-1 py-3 rounded-2xl bg-[#5a6e3a] hover:bg-[#4a5c2e] text-white font-semibold text-sm transition">
+      Tiếp tục mua sắm
+    </button>
+  </div>
+</div>
 
       </div>
     </div>
