@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Pencil, Trash2, X, Loader2, Search, ToggleLeft, ToggleRight, Star, Package, Tag, AlertTriangle, TrendingUp, Filter, ChevronDown, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatPrice, cn } from '@/lib/utils'
@@ -27,6 +27,16 @@ export default function AdminProductsClient({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [viewing, setViewing] = useState<Product | null>(null)
+
+  // ── Lắng nghe stock-updated từ AdminOrdersClient ───────────────────────
+  useEffect(() => {
+    const handleStockUpdated = (e: Event) => {
+      const { product_id, stock } = (e as CustomEvent).detail
+      setProducts(prev => prev.map(p => p.id === product_id ? { ...p, stock } : p))
+    }
+    window.addEventListener('stock-updated', handleStockUpdated)
+    return () => window.removeEventListener('stock-updated', handleStockUpdated)
+  }, [])
 
   // ── Stats ──────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -130,7 +140,6 @@ export default function AdminProductsClient({
 
       {/* ── Header + Button ── */}
       <div className="flex items-center justify-between">
-        
         <button onClick={openCreate} className="btn-primary flex items-center gap-2 shadow-sm">
           <Plus className="w-4 h-4" /> Thêm sản phẩm
         </button>
@@ -139,10 +148,10 @@ export default function AdminProductsClient({
       {/* ── Stats cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Tổng sản phẩm',    value: stats.total,           icon: Package,       color: 'bg-blue-50 text-blue-600',     border: 'border-blue-100' },
-          { label: 'Đang bán (có hàng)', value: stats.activeAndInStock, icon: TrendingUp,  color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' },
-          { label: 'Hết hàng',          value: stats.outOfStock,      icon: AlertTriangle, color: 'bg-red-50 text-red-500',        border: 'border-red-100' },
-          { label: 'Đang giảm giá',     value: stats.onSale,          icon: Tag,           color: 'bg-amber-50 text-amber-600',    border: 'border-amber-100' },
+          { label: 'Tổng sản phẩm',     value: stats.total,           icon: Package,       color: 'bg-blue-50 text-blue-600',       border: 'border-blue-100' },
+          { label: 'Đang bán (có hàng)', value: stats.activeAndInStock, icon: TrendingUp,   color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' },
+          { label: 'Hết hàng',           value: stats.outOfStock,      icon: AlertTriangle, color: 'bg-red-50 text-red-500',         border: 'border-red-100' },
+          { label: 'Đang giảm giá',      value: stats.onSale,          icon: Tag,           color: 'bg-amber-50 text-amber-600',     border: 'border-amber-100' },
         ].map((s, i) => (
           <div key={i} className={cn('rounded-xl border p-4 flex items-center gap-3 bg-white', s.border)}>
             <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', s.color)}>
@@ -350,7 +359,7 @@ export default function AdminProductsClient({
         </div>
       </div>
 
-{/* ── View Modal ── */}
+      {/* ── View Modal ── */}
       {viewing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewing(null)} />
@@ -434,12 +443,12 @@ export default function AdminProductsClient({
                   <Pencil className="w-4 h-4" /> Chỉnh sửa
                 </button>
               </div>
-
             </div>
           </div>
         </div>
       )}
-      {/* ── Modal ── */}
+
+      {/* ── Edit/Create Modal ── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />

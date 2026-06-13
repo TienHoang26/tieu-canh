@@ -20,9 +20,7 @@ const PAYMENT_STATUS_COLORS: Record<string, string> = {
   refunded: 'bg-gray-100 text-gray-700',
 }
 
-// Các trạng thái được coi là "đã trừ kho" (không hoàn kho khi chuyển giữa các trạng thái này)
 const STOCK_DEDUCTED_STATUSES = ['confirmed', 'shipping', 'delivered']
-// Các trạng thái được coi là "chưa trừ kho" (sẽ hoàn kho nếu trước đó đã trừ)
 const STOCK_RESTORED_STATUSES = ['pending', 'cancelled']
 
 type Period = 'day' | 'week' | 'month' | 'year'
@@ -118,7 +116,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
     revenueByDay[day] = (revenueByDay[day] ?? 0) + o.total
   })
 
-  // ── Lấy items của đơn hàng ──────────────────────────────────────────────
   async function getOrderItems(orderId: string) {
     const { data: items } = await supabase
       .from('order_items')
@@ -127,49 +124,43 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
     return items ?? []
   }
 
-  // ── Trừ kho ────────────────────────────────────────────────────────────
   async function deductStock(orderId: string) {
     const items = await getOrderItems(orderId)
     if (!items.length) return
     await Promise.all(
       items.map(async (item: { product_id: string; quantity: number }) => {
         const { data: product } = await supabase
-          .from('products')
-          .select('stock')
-          .eq('id', item.product_id)
-          .single()
+          .from('products').select('stock').eq('id', item.product_id).single()
         if (product) {
-          await supabase
-            .from('products')
-            .update({ stock: Math.max(0, product.stock - item.quantity) })
-            .eq('id', item.product_id)
+          const newStock = Math.max(0, product.stock - item.quantity)
+          await supabase.from('products').update({ stock: newStock }).eq('id', item.product_id)
+          window.dispatchEvent(new CustomEvent('stock-updated', {
+            detail: { product_id: item.product_id, stock: newStock }
+          }))
         }
       })
     )
   }
 
-  // ── Hoàn kho ───────────────────────────────────────────────────────────
   async function restoreStock(orderId: string) {
     const items = await getOrderItems(orderId)
     if (!items.length) return
     await Promise.all(
       items.map(async (item: { product_id: string; quantity: number }) => {
         const { data: product } = await supabase
-          .from('products')
-          .select('stock')
-          .eq('id', item.product_id)
-          .single()
+          .from('products').select('stock').eq('id', item.product_id).single()
         if (product) {
-          await supabase
-            .from('products')
-            .update({ stock: product.stock + item.quantity })
-            .eq('id', item.product_id)
+          const newStock = product.stock + item.quantity
+          await supabase.from('products').update({ stock: newStock }).eq('id', item.product_id)
+          window.dispatchEvent(new CustomEvent('stock-updated', {
+            detail: { product_id: item.product_id, stock: newStock }
+          }))
         }
       })
     )
   }
 
-  // ── Cập nhật trạng thái đơn + xử lý kho ───────────────────────────────
+  // ── Cập nhật trạng thái đơn + xử lý kho ──────────────────────────────
   async function updateOrderStatus(orderId: string, newStatus: string) {
     setUpdatingId(orderId)
     const previousStatus = orders.find((o) => o.id === orderId)?.status ?? ''
@@ -178,17 +169,14 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
     const willDeduct  = STOCK_DEDUCTED_STATUSES.includes(newStatus)
     const willRestore = STOCK_RESTORED_STATUSES.includes(newStatus)
 
-    // Trừ kho: khi chuyển từ trạng thái chưa trừ → đã trừ (confirmed/shipping/delivered)
     if (!wasDeducted && willDeduct) {
       await deductStock(orderId)
     }
 
-    // Hoàn kho: khi chuyển từ trạng thái đã trừ → chưa trừ (pending/cancelled)
     if (wasDeducted && willRestore) {
       await restoreStock(orderId)
     }
 
-    // Cập nhật trạng thái đơn hàng
     const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId)
     if (!error) {
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)))
@@ -197,17 +185,16 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
       }
     }
     setUpdatingId(null)
+    window.location.reload()
   }
 
-  // ── Cập nhật trạng thái thanh toán ────────────────────────────────────
+  // ── Cập nhật trạng thái thanh toán ───────────────────────────────────
   async function updatePaymentStatus(orderId: string, newPaymentStatus: string) {
     setUpdatingId(orderId)
     const order = orders.find((o) => o.id === orderId)
     const previousPaymentStatus = order?.payment_status
     const currentOrderStatus = order?.status ?? ''
 
-    // Trừ kho khi xác nhận đã thanh toán cho đơn online (COD không cần vì trừ khi confirmed)
-    // Chỉ trừ nếu kho chưa bị trừ (đơn đang ở pending — chưa confirmed)
     if (
       newPaymentStatus === 'paid' &&
       previousPaymentStatus !== 'paid' &&
@@ -217,7 +204,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
       await deductStock(orderId)
     }
 
-    // Hoàn kho khi hủy thanh toán (refunded) cho đơn online đang ở pending
     if (
       newPaymentStatus === 'refunded' &&
       previousPaymentStatus === 'paid' &&
@@ -237,11 +223,7 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
       if (newPaymentStatus === 'paid' && previousPaymentStatus !== 'paid') {
         if (order) {
           const { data: orderData } = await supabase
-            .from('orders')
-            .select('user_id')
-            .eq('id', orderId)
-            .single()
-
+            .from('orders').select('user_id').eq('id', orderId).single()
           if (orderData?.user_id && order.payment_method !== 'cod') {
             await supabase.from('notifications').insert({
               user_id: orderData.user_id,
@@ -256,9 +238,10 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
       }
     }
     setUpdatingId(null)
+    window.location.reload()
   }
 
-  // ── Excel export ───────────────────────────────────────────────────────
+  // ── Excel export ──────────────────────────────────────────────────────
   function exportExcel() {
     const wb = XLSX.utils.book_new()
 
@@ -281,7 +264,7 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
         const parse = (s: string) => s.split('/').reverse().join('-')
         return new Date(parse(a)).getTime() - new Date(parse(b)).getTime()
       })
-      .map(([ day, revenue ]) => ({ 'Ngày': day, 'Doanh thu (đ)': revenue }))
+      .map(([day, revenue]) => ({ 'Ngày': day, 'Doanh thu (đ)': revenue }))
     const ws2 = XLSX.utils.json_to_sheet(dayRows)
     ws2['!cols'] = [{ wch: 14 }, { wch: 18 }]
     XLSX.utils.book_append_sheet(wb, ws2, 'Doanh thu theo ngày')
@@ -319,7 +302,7 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
     XLSX.writeFile(wb, `doanh-thu-${period}-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="p-6 space-y-6">
 
@@ -387,21 +370,15 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
             </button>
           )}
         </div>
-        <select
-          value={filterPayment}
-          onChange={e => setFilterPayment(e.target.value)}
-          className="px-3 py-2 text-sm border border-stone-200 rounded-xl outline-none focus:border-moss-400 bg-white text-stone-600"
-        >
+        <select value={filterPayment} onChange={e => setFilterPayment(e.target.value)}
+          className="px-3 py-2 text-sm border border-stone-200 rounded-xl outline-none focus:border-moss-400 bg-white text-stone-600">
           <option value="">Tất cả thanh toán</option>
           {Object.entries(PAYMENT_STATUS_LABELS).map(([v, l]) => (
             <option key={v} value={v}>{l}</option>
           ))}
         </select>
-        <select
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
-          className="px-3 py-2 text-sm border border-stone-200 rounded-xl outline-none focus:border-moss-400 bg-white text-stone-600"
-        >
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          className="px-3 py-2 text-sm border border-stone-200 rounded-xl outline-none focus:border-moss-400 bg-white text-stone-600">
           <option value="">Tất cả trạng thái</option>
           {Object.entries(ORDER_STATUS_LABELS).map(([v, l]) => (
             <option key={v} value={v}>{l}</option>
@@ -413,9 +390,7 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
             Xóa bộ lọc
           </button>
         )}
-        <p className="text-xs text-stone-400 ml-auto">
-          {filteredOrders.length}/{orders.length} đơn hàng
-        </p>
+        <p className="text-xs text-stone-400 ml-auto">{filteredOrders.length}/{orders.length} đơn hàng</p>
       </div>
 
       {/* Table */}
@@ -506,14 +481,12 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <div className="p-5 space-y-4">
               <div>
                 <p className="text-xs text-gray-400 uppercase mb-1">Khách hàng</p>
                 <p className="font-medium">{selectedOrder.profile?.full_name}</p>
                 <p className="text-sm text-gray-500">{selectedOrder.profile?.email}</p>
               </div>
-
               <div>
                 <p className="text-xs text-gray-400 uppercase mb-1 flex items-center gap-1">
                   <Truck className="w-3 h-3" /> Thông tin giao hàng
@@ -522,7 +495,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
                 <p className="text-sm text-gray-500">{selectedOrder.shipping_phone}</p>
                 <p className="text-sm text-gray-500">{selectedOrder.shipping_address}</p>
               </div>
-
               <div>
                 <p className="text-xs text-gray-400 uppercase mb-2 flex items-center gap-1">
                   <CreditCard className="w-3 h-3" /> Thanh toán
@@ -544,7 +516,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
                   ))}
                 </div>
               </div>
-
               <div>
                 <p className="text-xs text-gray-400 uppercase mb-2">Sản phẩm</p>
                 <div className="space-y-2">
@@ -563,12 +534,10 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
                   ))}
                 </div>
               </div>
-
               <div className="flex justify-between items-center pt-3 border-t font-semibold">
                 <span>Tổng cộng</span>
                 <span className="text-lg">{formatPrice(selectedOrder.total)}</span>
               </div>
-
               {selectedOrder.note && (
                 <div className="bg-yellow-50 rounded-lg p-3 text-sm text-yellow-800">
                   <span className="font-medium">Ghi chú:</span> {selectedOrder.note}
