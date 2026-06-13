@@ -44,6 +44,8 @@ export default function ProfileClient({
     if (error) { toast.error(error.message) }
     else {
       setProfile(data)
+      // Notify Navbar to update
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: data }))
       setSaved(true)
       toast.success('Đã cập nhật hồ sơ!')
       setTimeout(() => setSaved(false), 2000)
@@ -54,23 +56,36 @@ export default function ProfileClient({
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !profile) return
-    if (file.size > 2 * 1024 * 1024) { toast.error('Ảnh tối đa 2MB!'); return }
+    if (file.size > 1 * 1024 * 1024) { toast.error('Ảnh tối đa 1MB!'); return }
 
     setUploadingAvatar(true)
-    const supabase = createClient()
-    const ext = file.name.split('.').pop()
-    const path = `avatars/${profile.id}.${ext}`
 
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
-    if (uploadError) { toast.error('Lỗi tải ảnh: ' + uploadError.message); setUploadingAvatar(false); return }
+    // Đọc file thành base64
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const base64 = reader.result as string // "data:image/jpeg;base64,..."
 
-    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-    const avatarUrl = `${publicUrl}?t=${Date.now()}`
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: base64 })
+        .eq('id', profile.id)
 
-    const { data, error } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', profile.id).select().single()
-    if (error) { toast.error('Lỗi cập nhật ảnh!') }
-    else { setProfile(data); toast.success('Đã cập nhật ảnh đại diện!') }
-    setUploadingAvatar(false)
+      if (error) {
+        toast.error('Lỗi cập nhật ảnh!')
+      } else {
+        setProfile(prev => prev ? { ...prev, avatar_url: base64 } : prev)
+        // Notify Navbar to update avatar
+        window.dispatchEvent(new CustomEvent('profile-updated', { detail: { avatar_url: base64 } }))
+        toast.success('Đã cập nhật ảnh đại diện!')
+      }
+      setUploadingAvatar(false)
+    }
+    reader.onerror = () => {
+      toast.error('Không đọc được file!')
+      setUploadingAvatar(false)
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleSignOut = async () => {

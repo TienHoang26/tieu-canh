@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 }
 
 const team = [
-  { name: 'Trần Minh Khoa', role: 'Nhà sáng lập & Nghệ nhân', avatar: 'https://i.pravatar.cc/200?img=12', bio: '10+ năm kinh nghiệm với bonsai và tiểu cảnh Nhật Bản.' },
+  { name: 'Nguyễn Viết Mạnh', role: 'Nhà sáng lập & Nghệ nhân', avatar: 'https://i.pravatar.cc/200?img=12', bio: '10+ năm kinh nghiệm với bonsai và tiểu cảnh Nhật Bản.' },
   { name: 'Nguyễn Thị Lan', role: 'Chuyên gia Terrarium', avatar: 'https://i.pravatar.cc/200?img=25', bio: 'Đam mê tạo ra những hệ sinh thái thu nhỏ độc đáo.' },
   { name: 'Lê Văn Hùng', role: 'Thiết kế & Phối màu', avatar: 'https://i.pravatar.cc/200?img=14', bio: 'Kết hợp nghệ thuật và thiên nhiên tạo nên vẻ đẹp thuần khiết.' },
 ]

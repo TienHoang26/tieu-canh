@@ -23,15 +23,13 @@ const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-
-
 let profileCache: { userId: string; profile: Profile } | null = null
 
 export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const [authReady, setAuthReady] = useState(false) // chờ auth xác định xong
+  const [authReady, setAuthReady] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [scrolled, setScrolled] = useState(false)
@@ -57,8 +55,6 @@ export default function Navbar() {
       return data
     }
 
-    // onAuthStateChange tự fire INITIAL_SESSION ngay khi subscribe
-    // → bắt được session từ cookie sau Google OAuth redirect
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
         if (session?.user) {
@@ -85,7 +81,6 @@ export default function Navbar() {
             localStorage.removeItem('userId')
           }
         }
-        // Đánh dấu auth đã sẵn sàng sau lần đầu tiên nhận event
         setAuthReady(true)
       }
     )
@@ -93,9 +88,23 @@ export default function Navbar() {
     const onScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', onScroll)
 
+    // Lắng nghe event cập nhật profile từ trang /profile
+    const handleProfileUpdated = (e: Event) => {
+      const updated = (e as CustomEvent).detail
+      if (profileCache) {
+        profileCache = {
+          ...profileCache,
+          profile: { ...profileCache.profile, ...updated },
+        }
+      }
+      setProfile(prev => prev ? { ...prev, ...updated } : prev)
+    }
+    window.addEventListener('profile-updated', handleProfileUpdated)
+
     return () => {
       subscription.unsubscribe()
       window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('profile-updated', handleProfileUpdated)
     }
   }, [])
 
@@ -114,13 +123,13 @@ export default function Navbar() {
   }
 
   const handleSearch = (e: React.FormEvent) => {
-  e.preventDefault()
-  if (searchQuery.trim()) {
-    router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`)
-    setSearchQuery('')
-    setMenuOpen(false)
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`)
+      setSearchQuery('')
+      setMenuOpen(false)
+    }
   }
-}
 
   const navLinks = [
     { href: '/', label: 'Trang chủ' },
@@ -130,10 +139,8 @@ export default function Navbar() {
     { href: '/contact', label: 'Liên hệ' },
   ]
 
-  // Phần account: chờ auth ready mới render để tránh flicker
   const renderAccount = () => {
     if (!authReady) {
-      // Placeholder giữ layout, không hiện gì
       return <div className="w-9 h-9" />
     }
     if (profile) {
