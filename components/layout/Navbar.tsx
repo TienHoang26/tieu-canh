@@ -15,6 +15,7 @@ import { useCart } from '@/lib/use-cart'
 import { useWishlist } from '@/lib/wishlist-store'
 import { cn } from '@/lib/utils'
 import type { Profile } from '@/types'
+import { useRouter } from 'next/navigation'
 
 // Tạo client 1 lần duy nhất ở module level (ngoài component)
 const supabase = createBrowserClient(
@@ -22,11 +23,13 @@ const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+
+
 let profileCache: { userId: string; profile: Profile } | null = null
 
 export default function Navbar() {
   const pathname = usePathname()
-
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [authReady, setAuthReady] = useState(false) // chờ auth xác định xong
   const [menuOpen, setMenuOpen] = useState(false)
@@ -111,11 +114,13 @@ export default function Navbar() {
   }
 
   const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (searchQuery.trim()) {
-      window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`
-    }
+  e.preventDefault()
+  if (searchQuery.trim()) {
+    router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`)
+    setSearchQuery('')
+    setMenuOpen(false)
   }
+}
 
   const navLinks = [
     { href: '/', label: 'Trang chủ' },

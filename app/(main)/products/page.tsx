@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import ProductCard from '@/components/ui/ProductCard'
 import ProductFilters from '@/components/products/ProductFilters'
 import ProductSort from '@/components/products/ProductSort'
+import Link from 'next/link'
 
 interface SearchParams {
   category?: string
@@ -20,10 +21,39 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const currentPage = Math.max(1, parseInt(searchParams.page ?? '1', 10))
   const offset = (currentPage - 1) * ITEMS_PER_PAGE
 
+  let searchIds: string[] | null = null
+  if (searchParams.search) {
+    const { data: searchResults } = await supabase
+      .rpc('search_products', { search_query: searchParams.search })
+    searchIds = searchResults?.map((p: { id: string }) => p.id) ?? []
+  }
+
   let query = supabase
     .from('products')
     .select('*, category:categories(name, slug)', { count: 'exact' })
     .eq('active', true)
+
+  if (searchIds !== null) {
+    if (searchIds.length === 0) {
+      const { data: categories } = await supabase.from('categories').select('*')
+      return (
+        <div className="min-h-screen bg-stone-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex gap-8">
+              <ProductFilters categories={categories ?? []} searchParams={{}} />
+              <div className="flex-1 text-center py-24">
+                <div className="text-6xl mb-4">🌱</div>
+                <h3 className="font-display text-xl font-bold text-stone-700 mb-2">Không tìm thấy sản phẩm</h3>
+                <p className="text-stone-500 mb-4">Thử tìm kiếm với từ khoá khác hoặc xem tất cả sản phẩm</p>
+                <Link href="/products" className="btn-primary inline-flex items-center">Xem tất cả</Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    query = query.in('id', searchIds)
+  }
 
   if (searchParams.category) {
     const { data: cat } = await supabase
@@ -32,10 +62,6 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
       .eq('slug', searchParams.category)
       .single()
     if (cat) query = query.eq('category_id', cat.id)
-  }
-
-  if (searchParams.search) {
-    query = query.ilike('name', `%${searchParams.search}%`)
   }
 
   if (searchParams.price) {
@@ -105,57 +131,52 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">
 
-          {/* Sidebar filter - client component */}
           <ProductFilters
             categories={categories ?? []}
             searchParams={sp}
           />
 
-          {/* Content */}
           <div className="flex-1 min-w-0">
 
-            {/* Sort tabs - client component */}
             <ProductSort searchParams={sp} />
 
-            {/* Active filter tags */}
             {hasFilters && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {searchParams.category && (
-                  <a href={buildUrl({ category: undefined, page: '1' })}
+                  <Link href={buildUrl({ category: undefined, page: '1' })}
                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-moss-50 border border-moss-200 text-moss-700 text-xs font-medium hover:bg-moss-100 transition-colors"
                   >
                     {categories?.find(c => c.slug === searchParams.category)?.name}
                     <span className="text-moss-400 text-sm leading-none">×</span>
-                  </a>
+                  </Link>
                 )}
                 {searchParams.search && (
-                  <a href={buildUrl({ search: undefined, page: '1' })}
+                  <Link href={buildUrl({ search: undefined, page: '1' })}
                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-moss-50 border border-moss-200 text-moss-700 text-xs font-medium hover:bg-moss-100 transition-colors"
                   >
                     "{searchParams.search}"
                     <span className="text-moss-400 text-sm leading-none">×</span>
-                  </a>
+                  </Link>
                 )}
                 {searchParams.price && (
-                  <a href={buildUrl({ price: undefined, page: '1' })}
+                  <Link href={buildUrl({ price: undefined, page: '1' })}
                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-moss-50 border border-moss-200 text-moss-700 text-xs font-medium hover:bg-moss-100 transition-colors"
                   >
                     {priceOptions.find(p => p.value === searchParams.price)?.label}
                     <span className="text-moss-400 text-sm leading-none">×</span>
-                  </a>
+                  </Link>
                 )}
                 {searchParams.status && (
-                  <a href={buildUrl({ status: undefined, page: '1' })}
+                  <Link href={buildUrl({ status: undefined, page: '1' })}
                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-moss-50 border border-moss-200 text-moss-700 text-xs font-medium hover:bg-moss-100 transition-colors"
                   >
                     {statusOptions.find(s => s.value === searchParams.status)?.label}
                     <span className="text-moss-400 text-sm leading-none">×</span>
-                  </a>
+                  </Link>
                 )}
               </div>
             )}
 
-            {/* Product grid */}
             {products && products.length > 0 ? (
               <>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 lg:gap-5">
@@ -164,13 +185,12 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                   ))}
                 </div>
 
-                {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-center gap-2 mt-10 pt-8 border-t border-stone-100">
                     {currentPage > 1 ? (
-                      <a href={buildUrl({ page: String(currentPage - 1) })}
+                      <Link href={buildUrl({ page: String(currentPage - 1) })}
                         className="flex items-center justify-center w-9 h-9 rounded-xl border border-stone-200 bg-white text-stone-500 hover:border-moss-300 hover:text-moss-700 transition-colors text-base"
-                      >‹</a>
+                      >‹</Link>
                     ) : (
                       <span className="flex items-center justify-center w-9 h-9 rounded-xl border border-stone-100 text-stone-300 text-base cursor-not-allowed">‹</span>
                     )}
@@ -187,20 +207,20 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                       }
 
                       return (
-                        <a key={page} href={buildUrl({ page: String(page) })}
+                        <Link key={page} href={buildUrl({ page: String(page) })}
                           className={`flex items-center justify-center w-9 h-9 rounded-xl text-sm font-medium transition-colors ${
                             page === currentPage ? 'bg-moss-600 text-white' : 'bg-white border border-stone-200 text-stone-600 hover:border-moss-300 hover:text-moss-700'
                           }`}
                         >
                           {page}
-                        </a>
+                        </Link>
                       )
                     })}
 
                     {currentPage < totalPages ? (
-                      <a href={buildUrl({ page: String(currentPage + 1) })}
+                      <Link href={buildUrl({ page: String(currentPage + 1) })}
                         className="flex items-center justify-center w-9 h-9 rounded-xl border border-stone-200 bg-white text-stone-500 hover:border-moss-300 hover:text-moss-700 transition-colors text-base"
-                      >›</a>
+                      >›</Link>
                     ) : (
                       <span className="flex items-center justify-center w-9 h-9 rounded-xl border border-stone-100 text-stone-300 text-base cursor-not-allowed">›</span>
                     )}
@@ -212,7 +232,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                 <div className="text-6xl mb-4">🌱</div>
                 <h3 className="font-display text-xl font-bold text-stone-700 mb-2">Không tìm thấy sản phẩm</h3>
                 <p className="text-stone-500 mb-4">Thử tìm kiếm với từ khoá khác hoặc xem tất cả sản phẩm</p>
-                <a href="/products" className="btn-primary inline-flex items-center">Xem tất cả</a>
+                <Link href="/products" className="btn-primary inline-flex items-center">Xem tất cả</Link>
               </div>
             )}
           </div>

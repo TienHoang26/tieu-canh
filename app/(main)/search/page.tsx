@@ -1,9 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Search, Package, BookOpen, ArrowRight } from 'lucide-react'
+import { Search, ArrowRight } from 'lucide-react'
 import ProductCard from '@/components/ui/ProductCard'
-import { formatDate } from '@/lib/utils'
 
 export const metadata: Metadata = {
   title: 'Tìm kiếm | Tiểu Cảnh Việt',
@@ -13,24 +12,11 @@ export default async function SearchPage({ searchParams }: { searchParams: { q?:
   const q = searchParams.q?.trim() ?? ''
   const supabase = createClient()
 
-  const [{ data: products }, { data: posts }] = q
-    ? await Promise.all([
-        supabase
-          .from('products')
-          .select('*, category:categories(name,slug)')
-          .eq('active', true)
-          .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
-          .limit(12),
-        supabase
-          .from('blog_posts')
-          .select('id,title,slug,excerpt,cover_image,created_at,tags')
-          .eq('published', true)
-          .or(`title.ilike.%${q}%,excerpt.ilike.%${q}%`)
-          .limit(6),
-      ])
-    : [{ data: [] }, { data: [] }]
+  const { data: products } = q
+    ? await supabase.rpc('search_products', { search_query: q })
+    : { data: [] }
 
-  const totalResults = (products?.length ?? 0) + (posts?.length ?? 0)
+  const totalResults = products?.length ?? 0
 
   return (
     <div className="min-h-screen bg-stone-50 pt-20 lg:pt-24">
@@ -43,7 +29,7 @@ export default async function SearchPage({ searchParams }: { searchParams: { q?:
             <input
               name="q"
               defaultValue={q}
-              placeholder="Tìm sản phẩm, bài viết..."
+              placeholder="Tìm sản phẩm..."
               className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-stone-200 focus:outline-none focus:border-moss-500 text-stone-800 text-lg bg-stone-50"
               autoFocus
             />
@@ -55,16 +41,15 @@ export default async function SearchPage({ searchParams }: { searchParams: { q?:
           {q && (
             <p className="text-center text-stone-500 text-sm mt-4">
               {totalResults > 0
-                ? <>Tìm thấy <strong className="text-stone-800">{totalResults}</strong> kết quả cho "<strong className="text-moss-700">{q}</strong>"</>
-                : <>Không tìm thấy kết quả nào cho "<strong className="text-stone-800">{q}</strong>"</>}
+                ? <>Tìm thấy <strong className="text-stone-800">{totalResults}</strong> sản phẩm cho "<strong className="text-moss-700">{q}</strong>"</>
+                : <>Không tìm thấy sản phẩm nào cho "<strong className="text-stone-800">{q}</strong>"</>}
             </p>
           )}
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-14">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {!q ? (
-          /* No query - show suggestions */
           <div className="text-center py-16">
             <div className="text-6xl mb-4">🔍</div>
             <h2 className="font-display text-2xl font-bold text-stone-700 mb-2">Bạn đang tìm gì?</h2>
@@ -88,58 +73,9 @@ export default async function SearchPage({ searchParams }: { searchParams: { q?:
             </Link>
           </div>
         ) : (
-          <>
-            {/* Products Results */}
-            {(products?.length ?? 0) > 0 && (
-              <section>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="font-display text-2xl font-bold text-stone-800 flex items-center gap-2">
-                    <Package className="w-6 h-6 text-moss-600" />
-                    Sản phẩm
-                    <span className="text-lg font-normal text-stone-400">({products?.length})</span>
-                  </h2>
-                  <Link href={`/products?search=${encodeURIComponent(q)}`}
-                    className="text-sm text-moss-600 font-semibold hover:underline flex items-center gap-1">
-                    Xem tất cả <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                  {products?.map(p => <ProductCard key={p.id} product={p} />)}
-                </div>
-              </section>
-            )}
-
-            {/* Blog Results */}
-            {(posts?.length ?? 0) > 0 && (
-              <section>
-                <h2 className="font-display text-2xl font-bold text-stone-800 flex items-center gap-2 mb-6">
-                  <BookOpen className="w-6 h-6 text-moss-600" />
-                  Bài viết
-                  <span className="text-lg font-normal text-stone-400">({posts?.length})</span>
-                </h2>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {posts?.map(post => (
-                    <Link key={post.id} href={`/blog/${post.slug}`}
-                      className="group bg-white rounded-2xl border border-stone-100 overflow-hidden hover:shadow-lg transition-all">
-                      {post.cover_image && (
-                        <img src={post.cover_image} alt={post.title}
-                          className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-500" />
-                      )}
-                      <div className="p-4">
-                        <p className="text-xs text-stone-400 mb-2">{formatDate(post.created_at)}</p>
-                        <h3 className="font-bold text-stone-800 group-hover:text-moss-700 transition-colors line-clamp-2">
-                          {post.title}
-                        </h3>
-                        {post.excerpt && (
-                          <p className="text-sm text-stone-500 line-clamp-2 mt-1">{post.excerpt}</p>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {products?.map((p: any) => <ProductCard key={p.id} product={p} />)}
+          </div>
         )}
       </div>
     </div>
