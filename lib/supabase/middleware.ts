@@ -14,13 +14,10 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // Bước 1: set vào request để các handler sau đọc được
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          // Bước 2: tạo lại response với request đã có cookie mới
           supabaseResponse = NextResponse.next({ request })
-          // Bước 3: set vào response để browser nhận được
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -29,15 +26,30 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // QUAN TRỌNG: phải gọi getUser() để middleware refresh token nếu cần
-  // Không dùng kết quả này để redirect tránh vòng lặp với callback
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
 
-  // Bỏ qua callback route - đang trong quá trình xử lý OAuth
+  // Bỏ qua callback route
   if (pathname.startsWith('/api/auth/callback')) {
     return supabaseResponse
+  }
+
+  // ── Kiểm tra tài khoản bị khóa ──────────────────────────────────────
+  if (user && !pathname.startsWith('/auth')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, is_locked')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.is_locked && profile?.role !== 'admin') {
+      // Đăng xuất session
+      await supabase.auth.signOut()
+      const url = new URL('/auth/login', request.url)
+      url.searchParams.set('error', 'locked')
+      return NextResponse.redirect(url)
+    }
   }
 
   if (pathname.startsWith('/admin')) {

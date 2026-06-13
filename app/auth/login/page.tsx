@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Mail, Lock, Eye, EyeOff, Loader2, Leaf, LogIn } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Loader2, Leaf, LogIn, ShieldAlert } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
@@ -110,6 +110,27 @@ const LOGIN_CSS = `
   margin: 0 0 6px 0;
 }
 .lp-subheading { font-size: 14px; color: #5a8a5e; margin: 0 0 26px 0; }
+
+.lp-locked-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fff5f5;
+  border: 1.5px solid #fca5a5;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+.lp-locked-banner-icon {
+  width: 20px;
+  height: 20px;
+  color: #dc2626;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.lp-locked-banner-text { font-size: 13.5px; color: #991b1b; line-height: 1.5; }
+.lp-locked-banner-text strong { display: block; font-size: 14px; margin-bottom: 2px; }
+
 .lp-input-group { position: relative; margin-bottom: 14px; }
 .lp-input-icon {
   position: absolute;
@@ -253,6 +274,8 @@ const LOGIN_CSS = `
 function LoginForm() {
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
+  const errorParam = searchParams.get('error')
+  const isLocked = errorParam === 'locked'
   const router = useRouter()
 
   const [email, setEmail] = useState('')
@@ -279,14 +302,20 @@ function LoginForm() {
         return
       }
 
+      // ── Kiểm tra tài khoản bị khóa ─────────────────────────────────
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, is_locked')
         .eq('id', data.user.id)
         .single()
 
-      toast.success('Đăng nhập thành công!')
+      if (profile?.is_locked && profile?.role !== 'admin') {
+        await supabase.auth.signOut()
+        router.replace('/auth/login?error=locked')
+        return
+      }
 
+      toast.success('Đăng nhập thành công!')
       const destination = profile?.role === 'admin' ? '/admin' : redirect
       router.push(destination)
       router.refresh()
@@ -368,6 +397,17 @@ function LoginForm() {
           <div className="lp-right">
             <h1 className="lp-heading">Chào mừng trở lại!</h1>
             <p className="lp-subheading">Đăng nhập để tiếp tục</p>
+
+            {/* Banner tài khoản bị khóa */}
+            {isLocked && (
+              <div className="lp-locked-banner">
+                <ShieldAlert className="lp-locked-banner-icon" />
+                <div className="lp-locked-banner-text">
+                  <strong>Tài khoản của bạn đã bị khóa</strong>
+                  Vui lòng liên hệ admin để được hỗ trợ mở khóa tài khoản.
+                </div>
+              </div>
+            )}
 
             <div className="lp-input-group">
               <Mail className="lp-input-icon" />

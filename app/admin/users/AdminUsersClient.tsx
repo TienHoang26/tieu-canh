@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Search, Shield, User, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import { formatDate, cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { Profile } from '@/types'
@@ -11,6 +12,7 @@ export default function AdminUsersClient({ profiles: initial }: { profiles: Prof
   const [profiles, setProfiles] = useState(initial.filter(p => p.role === 'customer'))
   const [search, setSearch] = useState('')
   const [updating, setUpdating] = useState<string | null>(null)
+  const router = useRouter()
 
   const filtered = profiles.filter(p =>
     p.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -27,10 +29,12 @@ export default function AdminUsersClient({ profiles: initial }: { profiles: Prof
       .from('profiles')
       .update({ is_locked: newLocked })
       .eq('id', p.id)
-    if (error) { toast.error(error.message) }
-    else {
+    if (error) {
+      toast.error(error.message)
+    } else {
       setProfiles(ps => ps.map(x => x.id === p.id ? { ...x, is_locked: newLocked } : x))
       toast.success(newLocked ? 'Đã khóa tài khoản!' : 'Đã mở khóa tài khoản!')
+      router.refresh() // ← invalidate cache server, đảm bảo reload lấy data mới
     }
     setUpdating(null)
   }
@@ -43,19 +47,19 @@ export default function AdminUsersClient({ profiles: initial }: { profiles: Prof
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-  <div className="card p-4 text-center">
-    <p className="text-2xl font-bold text-stone-800">{profiles.filter(p => p.role === 'customer').length}</p>
-    <p className="text-sm text-stone-500 mt-0.5">Tổng khách hàng</p>
-  </div>
-  <div className="card p-4 text-center">
-    <p className="text-2xl font-bold text-green-700">{profiles.filter(p => p.role === 'customer' && !p.is_locked).length}</p>
-    <p className="text-sm text-stone-500 mt-0.5">Đang hoạt động</p>
-  </div>
-  <div className="card p-4 text-center">
-    <p className="text-2xl font-bold text-red-600">{profiles.filter(p => p.role === 'customer' && p.is_locked).length}</p>
-    <p className="text-sm text-stone-500 mt-0.5">Đã khóa</p>
-  </div>
-</div>
+        <div className="card p-4 text-center">
+          <p className="text-2xl font-bold text-stone-800">{profiles.filter(p => p.role === 'customer').length}</p>
+          <p className="text-sm text-stone-500 mt-0.5">Tổng khách hàng</p>
+        </div>
+        <div className="card p-4 text-center">
+          <p className="text-2xl font-bold text-green-700">{profiles.filter(p => p.role === 'customer' && !p.is_locked).length}</p>
+          <p className="text-sm text-stone-500 mt-0.5">Đang hoạt động</p>
+        </div>
+        <div className="card p-4 text-center">
+          <p className="text-2xl font-bold text-red-600">{profiles.filter(p => p.role === 'customer' && p.is_locked).length}</p>
+          <p className="text-sm text-stone-500 mt-0.5">Đã khóa</p>
+        </div>
+      </div>
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -69,7 +73,7 @@ export default function AdminUsersClient({ profiles: initial }: { profiles: Prof
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-               <tr className="bg-moss-600/10 border-b border-stone-200">
+              <tr className="bg-moss-600/10 border-b border-stone-200">
                 <th className="text-center px-4 py-3 text-moss-800 font-bold uppercase text-xs border-r border-moss-200 w-12">STT</th>
                 <th className="text-left px-5 py-3 text-moss-800 font-bold uppercase text-xs border-r border-moss-200">Người dùng</th>
                 <th className="text-center px-5 py-3 text-moss-800 font-bold uppercase text-xs border-r border-moss-200 hidden sm:table-cell">Ngày đăng ký</th>
