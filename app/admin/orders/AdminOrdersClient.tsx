@@ -20,6 +20,11 @@ const PAYMENT_STATUS_COLORS: Record<string, string> = {
   refunded: 'bg-gray-100 text-gray-700',
 }
 
+// Các trạng thái được coi là "đã trừ kho" (không hoàn kho khi chuyển giữa các trạng thái này)
+const STOCK_DEDUCTED_STATUSES = ['confirmed', 'shipping', 'delivered']
+// Các trạng thái được coi là "chưa trừ kho" (sẽ hoàn kho nếu trước đó đã trừ)
+const STOCK_RESTORED_STATUSES = ['pending', 'cancelled']
+
 type Period = 'day' | 'week' | 'month' | 'year'
 
 function getDateRange(period: Period): { from: Date; to: Date; label: string } {
@@ -91,7 +96,7 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
     const matchStatus  = !filterStatus  || o.status === filterStatus
     return matchSearch && matchPayment && matchStatus
   })
-  // ── Period filter ──────────────────────────────────────────────────────
+
   const { from, to, label: periodLabel } = getDateRange(period)
 
   const filteredByPeriod = filteredOrders.filter(o => {
@@ -113,35 +118,77 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
     revenueByDay[day] = (revenueByDay[day] ?? 0) + o.total
   })
 
-  // ── Actions ────────────────────────────────────────────────────────────
+  // ── Lấy items của đơn hàng ──────────────────────────────────────────────
+  async function getOrderItems(orderId: string) {
+    const { data: items } = await supabase
+      .from('order_items')
+      .select('product_id, quantity')
+      .eq('order_id', orderId)
+    return items ?? []
+  }
+
+  // ── Trừ kho ────────────────────────────────────────────────────────────
+  async function deductStock(orderId: string) {
+    const items = await getOrderItems(orderId)
+    if (!items.length) return
+    await Promise.all(
+      items.map(async (item: { product_id: string; quantity: number }) => {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.product_id)
+          .single()
+        if (product) {
+          await supabase
+            .from('products')
+            .update({ stock: Math.max(0, product.stock - item.quantity) })
+            .eq('id', item.product_id)
+        }
+      })
+    )
+  }
+
+  // ── Hoàn kho ───────────────────────────────────────────────────────────
+  async function restoreStock(orderId: string) {
+    const items = await getOrderItems(orderId)
+    if (!items.length) return
+    await Promise.all(
+      items.map(async (item: { product_id: string; quantity: number }) => {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.product_id)
+          .single()
+        if (product) {
+          await supabase
+            .from('products')
+            .update({ stock: product.stock + item.quantity })
+            .eq('id', item.product_id)
+        }
+      })
+    )
+  }
+
+  // ── Cập nhật trạng thái đơn + xử lý kho ───────────────────────────────
   async function updateOrderStatus(orderId: string, newStatus: string) {
     setUpdatingId(orderId)
-    const previousStatus = orders.find((o) => o.id === orderId)?.status
-    if (newStatus === 'delivered' && previousStatus !== 'delivered') {
-      const { data: items } = await supabase
-        .from('order_items')
-        .select('product_id, quantity')
-        .eq('order_id', orderId)
+    const previousStatus = orders.find((o) => o.id === orderId)?.status ?? ''
 
-      if (items && items.length > 0) {
-        await Promise.all(
-          items.map(async (item: { product_id: string; quantity: number }) => {
-            const { data: product } = await supabase
-              .from('products')
-              .select('stock')
-              .eq('id', item.product_id)
-              .single()
-            if (product) {
-              await supabase
-                .from('products')
-                .update({ stock: Math.max(0, product.stock - item.quantity) })
-                .eq('id', item.product_id)
-            }
-          })
-        )
-      }
+    const wasDeducted = STOCK_DEDUCTED_STATUSES.includes(previousStatus)
+    const willDeduct  = STOCK_DEDUCTED_STATUSES.includes(newStatus)
+    const willRestore = STOCK_RESTORED_STATUSES.includes(newStatus)
+
+    // Trừ kho: khi chuyển từ trạng thái chưa trừ → đã trừ (confirmed/shipping/delivered)
+    if (!wasDeducted && willDeduct) {
+      await deductStock(orderId)
     }
 
+    // Hoàn kho: khi chuyển từ trạng thái đã trừ → chưa trừ (pending/cancelled)
+    if (wasDeducted && willRestore) {
+      await restoreStock(orderId)
+    }
+
+    // Cập nhật trạng thái đơn hàng
     const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId)
     if (!error) {
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)))
@@ -152,9 +199,34 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
     setUpdatingId(null)
   }
 
+  // ── Cập nhật trạng thái thanh toán ────────────────────────────────────
   async function updatePaymentStatus(orderId: string, newPaymentStatus: string) {
     setUpdatingId(orderId)
-    const previousStatus = orders.find((o) => o.id === orderId)?.payment_status
+    const order = orders.find((o) => o.id === orderId)
+    const previousPaymentStatus = order?.payment_status
+    const currentOrderStatus = order?.status ?? ''
+
+    // Trừ kho khi xác nhận đã thanh toán cho đơn online (COD không cần vì trừ khi confirmed)
+    // Chỉ trừ nếu kho chưa bị trừ (đơn đang ở pending — chưa confirmed)
+    if (
+      newPaymentStatus === 'paid' &&
+      previousPaymentStatus !== 'paid' &&
+      order?.payment_method !== 'cod' &&
+      !STOCK_DEDUCTED_STATUSES.includes(currentOrderStatus)
+    ) {
+      await deductStock(orderId)
+    }
+
+    // Hoàn kho khi hủy thanh toán (refunded) cho đơn online đang ở pending
+    if (
+      newPaymentStatus === 'refunded' &&
+      previousPaymentStatus === 'paid' &&
+      order?.payment_method !== 'cod' &&
+      !STOCK_DEDUCTED_STATUSES.includes(currentOrderStatus)
+    ) {
+      await restoreStock(orderId)
+    }
+
     const { error } = await supabase.from('orders').update({ payment_status: newPaymentStatus }).eq('id', orderId)
     if (!error) {
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, payment_status: newPaymentStatus } : o)))
@@ -162,9 +234,7 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
         setSelectedOrder((prev) => prev ? { ...prev, payment_status: newPaymentStatus } : prev)
       }
 
-      // Gửi thông báo khi xác nhận đã thanh toán (chỉ khi chuyển từ trạng thái khác sang paid)
-      if (newPaymentStatus === 'paid' && previousStatus !== 'paid') {
-        const order = orders.find((o) => o.id === orderId)
+      if (newPaymentStatus === 'paid' && previousPaymentStatus !== 'paid') {
         if (order) {
           const { data: orderData } = await supabase
             .from('orders')
@@ -192,7 +262,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
   function exportExcel() {
     const wb = XLSX.utils.book_new()
 
-    // Sheet 1: Danh sách đơn hàng
     const orderRows = filteredByPeriod.map((o, i) => ({
       'STT': i + 1,
       'Mã đơn': '#' + o.id.slice(0, 8).toUpperCase(),
@@ -207,7 +276,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
     ws1['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 20 }, { wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 22 }]
     XLSX.utils.book_append_sheet(wb, ws1, 'Đơn hàng')
 
-    // Sheet 2: Doanh thu theo ngày
     const dayRows = Object.entries(revenueByDay)
       .sort(([a], [b]) => {
         const parse = (s: string) => s.split('/').reverse().join('-')
@@ -218,7 +286,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
     ws2['!cols'] = [{ wch: 14 }, { wch: 18 }]
     XLSX.utils.book_append_sheet(wb, ws2, 'Doanh thu theo ngày')
 
-    // Sheet 3: Thống kê theo sản phẩm
     const productMap: Record<string, { name: string; qty: number; revenue: number }> = {}
     filteredByPeriod.filter(o => o.payment_status === 'paid').forEach(o => {
       o.items?.forEach(item => {
@@ -235,7 +302,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
     ws3['!cols'] = [{ wch: 5 }, { wch: 36 }, { wch: 16 }, { wch: 18 }]
     XLSX.utils.book_append_sheet(wb, ws3, 'Theo sản phẩm')
 
-    // Sheet 4: Thống kê theo khách hàng
     const customerMap: Record<string, { name: string; email: string; orders: number; revenue: number }> = {}
     filteredByPeriod.filter(o => o.payment_status === 'paid').forEach(o => {
       const key = o.profile?.email ?? 'unknown'
@@ -266,7 +332,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Period tabs */}
           <div className="flex bg-stone-100 rounded-xl p-1 gap-1">
             {([['day', 'Ngày'], ['week', 'Tuần'], ['month', 'Tháng'], ['year', 'Năm']] as [Period, string][]).map(([val, lbl]) => (
               <button key={val} onClick={() => setPeriod(val)}
@@ -275,7 +340,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
               </button>
             ))}
           </div>
-          {/* Export */}
           <button onClick={exportExcel}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors shadow-sm">
             <Download className="w-4 h-4" /> Xuất Excel
@@ -353,7 +417,8 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
           {filteredOrders.length}/{orders.length} đơn hàng
         </p>
       </div>
-      {/* Table — hiển thị TẤT CẢ đơn hàng, không lọc theo period */}
+
+      {/* Table */}
       <div className="overflow-hidden border border-stone-200">
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
@@ -443,14 +508,12 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
             </div>
 
             <div className="p-5 space-y-4">
-              {/* Customer */}
               <div>
                 <p className="text-xs text-gray-400 uppercase mb-1">Khách hàng</p>
                 <p className="font-medium">{selectedOrder.profile?.full_name}</p>
                 <p className="text-sm text-gray-500">{selectedOrder.profile?.email}</p>
               </div>
 
-              {/* Shipping info */}
               <div>
                 <p className="text-xs text-gray-400 uppercase mb-1 flex items-center gap-1">
                   <Truck className="w-3 h-3" /> Thông tin giao hàng
@@ -460,7 +523,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
                 <p className="text-sm text-gray-500">{selectedOrder.shipping_address}</p>
               </div>
 
-              {/* Payment status controls */}
               <div>
                 <p className="text-xs text-gray-400 uppercase mb-2 flex items-center gap-1">
                   <CreditCard className="w-3 h-3" /> Thanh toán
@@ -483,7 +545,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
                 </div>
               </div>
 
-              {/* Order items */}
               <div>
                 <p className="text-xs text-gray-400 uppercase mb-2">Sản phẩm</p>
                 <div className="space-y-2">
@@ -503,7 +564,6 @@ export default function AdminOrdersClient({ orders: initialOrders }: { orders: O
                 </div>
               </div>
 
-              {/* Total */}
               <div className="flex justify-between items-center pt-3 border-t font-semibold">
                 <span>Tổng cộng</span>
                 <span className="text-lg">{formatPrice(selectedOrder.total)}</span>
